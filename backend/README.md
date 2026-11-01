@@ -17,6 +17,13 @@ Make someone an admin (they must register in the app first):
 npm run make-admin -- someone@example.com
 ```
 
+## Testing the API
+
+- **Swagger UI:** http://localhost:4000/docs (raw spec at `/docs/openapi.json`). Sign in with register/request-code → verify-code, then click **Authorize** and paste the token.
+- **Postman:** import `postman/bible-app.postman_collection.json`, set the `email`/`name`/`phone` collection variables, and put the emailed code in `code` before running **Verify code**. The token is saved automatically.
+
+When adding endpoints, add them to `src/docs/openapi.ts` and the Postman collection.
+
 ## Structure
 
 Code is grouped by feature under `src/modules/`. Each module separates commands (change data) from queries (read data), and keeps HTTP, business logic and SQL in separate layers.
