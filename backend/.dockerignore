@@ -1,0 +1,11 @@
+node_modules
+dist
+tests
+postman
+.env
+.env.*
+*.md
+*.log
+.git
+Dockerfile
+.dockerignore
