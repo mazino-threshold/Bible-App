@@ -24,6 +24,11 @@ const schema = z
     EMAIL_FROM_ADDRESS: optionalString,
     BREVO_API_KEY: optionalString,
     RESEND_API_KEY: optionalString,
+
+    // Shared secret the cron job sends in the X-Cron-Secret header to trigger reminders
+    CRON_SECRET: optionalString.refine((v) => v === undefined || v.length >= 16, 'must be at least 16 characters'),
+    // Only needed if "Enhanced push security" is turned on in your Expo account
+    EXPO_ACCESS_TOKEN: optionalString,
   })
   .superRefine((env, ctx) => {
     const require = (key: keyof typeof env, why: string) => {
@@ -32,6 +37,9 @@ const schema = z
 
     if (env.EMAIL_PROVIDER === 'console' && env.NODE_ENV === 'production') {
       ctx.addIssue({ code: 'custom', path: ['EMAIL_PROVIDER'], message: 'must be brevo or resend in production' });
+    }
+    if (env.NODE_ENV === 'production') {
+      require('CRON_SECRET', 'required in production, so only your cron job can trigger reminders');
     }
     if (env.EMAIL_PROVIDER === 'brevo') {
       require('BREVO_API_KEY', 'required when EMAIL_PROVIDER=brevo');

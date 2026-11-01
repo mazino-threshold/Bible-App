@@ -11,7 +11,9 @@
     { "key": "phone", "value": "+234 803 000 0000" },
     { "key": "code", "value": "" },
     { "key": "token", "value": "" },
-    { "key": "weekStart", "value": "2026-11-02", "description": "A Monday, YYYY-MM-DD" }
+    { "key": "weekStart", "value": "2026-11-02", "description": "A Monday, YYYY-MM-DD" },
+    { "key": "pushToken", "value": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]" },
+    { "key": "cronSecret", "value": "", "description": "CRON_SECRET from .env (leave empty in development if not set)" }
   ],
   "auth": {
     "type": "bearer",
@@ -301,6 +303,95 @@
               "script": {
                 "type": "text/javascript",
                 "exec": ["pm.test('saved', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Push & Reminders",
+      "item": [
+        {
+          "name": "Register push token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"token\": \"{{pushToken}}\"\n}" },
+            "url": "{{baseUrl}}/me/push-tokens"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('registered', () => pm.response.to.have.status(204));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove push token",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"token\": \"{{pushToken}}\"\n}" },
+            "url": "{{baseUrl}}/me/push-tokens"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('removed', () => pm.response.to.have.status(204));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Run reminders (what the cron job calls)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Cron-Secret", "value": "{{cronSecret}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": "{{baseUrl}}/internal/reminders/run"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const run = pm.response.json().run;",
+                  "console.log(run.status, run.reason || '', '| hour', run.hour, '| sent', run.sent, 'of', run.devices);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Run a specific slot now (development only)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Cron-Secret", "value": "{{cronSecret}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"hour\": 6\n}" },
+            "url": "{{baseUrl}}/internal/reminders/run"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('status 200', () => pm.response.to.have.status(200));"]
               }
             }
           ]

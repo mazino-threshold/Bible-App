@@ -17,12 +17,35 @@ Make someone an admin (they must register in the app first):
 npm run make-admin -- someone@example.com
 ```
 
-## Testing the API
+## Automated tests
+
+```
+npm test            # everything (about 1.5 minutes)
+npm run test:unit   # pure rules only, no database (under a second)
+npm run test:api    # end-to-end against the database
+```
+
+- `tests/unit/`: streaks, day statuses, reminder slots, report filters, Nigeria time. No database.
+- `tests/api/`: real HTTP calls against the app and database. They fake "today" into 2099 (`setNigeriaTime`), only create data in 2099 or with `test.` emails, and delete it afterwards.
+- No real emails or pushes are sent: codes are read from the logs, and Expo is simulated.
+- They use `DATABASE_URL` from `.env`, or `TEST_DATABASE_URL` if set (recommended: a separate Neon branch). They refuse to run with `NODE_ENV=production`.
+- Set `TEST_LOGS=1` to see the app's logs while tests run.
+
+## Testing the API by hand
 
 - **Swagger UI:** http://localhost:4000/docs (raw spec at `/docs/openapi.json`). Sign in with register/request-code → verify-code, then click **Authorize** and paste the token.
 - **Postman:** import `postman/bible-app.postman_collection.json`, set the `email`/`name`/`phone` collection variables, and put the emailed code in `code` before running **Verify code**. The token is saved automatically.
 
 When adding endpoints, add them to `src/docs/openapi.ts` and the Postman collection.
+
+## Reminders
+
+Push reminders go out at 6, 9, 12, 15, 18 and 21 Nigeria time, Mon–Sat, to users whose frequency includes that slot (high: all, mid: 6/12/18/21, low: 6/21, off: none) and who haven't checked in today.
+
+- The app registers each device with `POST /me/push-tokens` (an Expo push token).
+- An external cron job (cron-job.org) calls `POST /internal/reminders/run` with header `X-Cron-Secret: <CRON_SECRET>` at each slot. The API works out the slot from the clock (±15 min).
+- Each slot is sent at most once per day (`reminder_runs` table), so retries or double calls are safe.
+- Locally, leave `CRON_SECRET` empty and send `{ "hour": 6 }` to run a slot immediately (refused in production).
 
 ## Logging
 
