@@ -1,7 +1,7 @@
 import type { ErrorRequestHandler, RequestHandler } from 'express';
 import { ZodError } from 'zod';
 
-/** Throw this from a route to send a specific status code and message to the app. */
+/** Throw this from anywhere to send a specific status code and message to the app. */
 export class HttpError extends Error {
   constructor(
     public status: number,
