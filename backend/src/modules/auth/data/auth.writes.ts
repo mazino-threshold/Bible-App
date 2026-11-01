@@ -45,7 +45,3 @@ export async function touchSession(id: string): Promise<void> {
 export async function deleteSession(id: string): Promise<void> {
   await db.query('DELETE FROM sessions WHERE id = $1', [id]);
 }
-
-export async function deletePushToken(token: string, userId: string): Promise<void> {
-  await db.query('DELETE FROM push_tokens WHERE token = $1 AND user_id = $2', [token, userId]);
-}

@@ -21,6 +21,19 @@ export function todayInNigeria(now: Date = new Date()): string {
   return dateFormatter.format(now);
 }
 
+const minuteFormatter = new Intl.DateTimeFormat('en-GB', {
+  timeZone: APP_TIME_ZONE,
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
+/** Minutes since midnight in Nigeria, e.g. 6:05 AM -> 365. */
+export function minutesIntoDayInNigeria(now: Date = new Date()): number {
+  const [hours, minutes] = minuteFormatter.format(now).split(':').map(Number);
+  return hours! * 60 + minutes!;
+}
+
 /** The current hour (0-23) in Nigeria. */
 export function hourInNigeria(now: Date = new Date()): number {
   return Number(hourFormatter.format(now));

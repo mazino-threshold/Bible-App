@@ -2,6 +2,8 @@
 // the API validates with, so the docs stay in sync. Add new endpoints to `paths` as modules are built.
 import { z } from 'zod';
 import { logoutSchema, registerSchema, requestCodeSchema, verifyCodeSchema } from '../modules/auth/auth.schemas';
+import { pushTokenSchema } from '../modules/push/push.schemas';
+import { runRemindersSchema } from '../modules/reminders/reminders.schemas';
 import { saveWeekSchema } from '../modules/schedule/schedule.schemas';
 import { updateProfileSchema } from '../modules/users/users.schemas';
 
@@ -67,6 +69,12 @@ export const openApiSpec = {
   components: {
     securitySchemes: {
       bearerAuth: { type: 'http', scheme: 'bearer', description: 'The token returned by /auth/verify-code' },
+      cronSecret: {
+        type: 'apiKey',
+        in: 'header',
+        name: 'X-Cron-Secret',
+        description: 'CRON_SECRET from .env. Not needed in development if CRON_SECRET is empty',
+      },
     },
     schemas: {
       Error: {
@@ -265,6 +273,61 @@ export const openApiSpec = {
           200: jsonResponse('Updated profile', { type: 'object', properties: { user: ref('User') } }),
           400: errorResponse('Invalid input'),
           401: errorResponse('Not signed in'),
+        },
+      },
+    },
+    '/me/push-tokens': {
+      post: {
+        tags: ['Profile'],
+        summary: "Register this device for reminders (the app calls this after sign-in). Safe to repeat",
+        security: signedIn,
+        requestBody: jsonBody(pushTokenSchema, { token: 'ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]' }),
+        responses: {
+          204: { description: 'Registered' },
+          400: errorResponse('Not a valid Expo push token'),
+          401: errorResponse('Not signed in'),
+        },
+      },
+      delete: {
+        tags: ['Profile'],
+        summary: 'Stop reminders to this device',
+        security: signedIn,
+        requestBody: jsonBody(pushTokenSchema, { token: 'ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]' }),
+        responses: { 204: { description: 'Removed' }, 401: errorResponse('Not signed in') },
+      },
+    },
+    '/internal/reminders/run': {
+      post: {
+        tags: ['Internal: Reminders'],
+        summary: 'Send push reminders for the current slot (called by cron-job.org at 6, 9, 12, 15, 18, 21 Nigeria time)',
+        description:
+          'Works out the slot from Nigeria time (±15 min). Skips Sundays, days with no reading, and slots already sent today. ' +
+          'Only users whose reminder frequency includes this slot and who have not checked in today are reminded. ' +
+          'Outside production you can send `{ "hour": 6 }` to run a slot now.',
+        security: [{ cronSecret: [] }],
+        requestBody: { ...jsonBody(runRemindersSchema, {}), required: false },
+        responses: {
+          200: jsonResponse('What happened', {
+            type: 'object',
+            properties: {
+              run: {
+                type: 'object',
+                properties: {
+                  date: { type: 'string' },
+                  hour: { type: ['integer', 'null'] },
+                  status: { type: 'string', enum: ['sent', 'skipped'] },
+                  reason: { type: 'string', description: 'Why nothing was sent, when skipped' },
+                  users: { type: 'integer' },
+                  devices: { type: 'integer' },
+                  sent: { type: 'integer' },
+                  failed: { type: 'integer' },
+                  invalidTokensRemoved: { type: 'integer' },
+                },
+              },
+            },
+          }),
+          400: errorResponse('Invalid hour, or hour override used in production'),
+          401: errorResponse('Missing or wrong X-Cron-Secret'),
         },
       },
     },

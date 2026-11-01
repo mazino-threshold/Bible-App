@@ -5,6 +5,8 @@ import { docsRouter } from './docs/docs.routes';
 import { authRouter } from './modules/auth/auth.routes';
 import { checkInsRouter } from './modules/checkins/checkins.routes';
 import { healthRouter } from './modules/health/health.routes';
+import { pushTokensRouter } from './modules/push/push.routes';
+import { remindersRouter } from './modules/reminders/reminders.routes';
 import { adminReportsRouter } from './modules/reports/reports.routes';
 import { adminScheduleRouter, scheduleRouter } from './modules/schedule/schedule.routes';
 import { meRouter } from './modules/users/users.routes';
@@ -27,11 +29,14 @@ app.use(express.json());
 
 app.use('/health', healthRouter);
 app.use('/auth', authRouter);
+// Before /me, so /me's sign-in check doesn't run twice for these requests
+app.use('/me/push-tokens', pushTokensRouter);
 app.use('/me', meRouter);
 app.use('/schedule', scheduleRouter);
 app.use('/admin/schedule', adminScheduleRouter);
 app.use('/check-ins', checkInsRouter);
 app.use('/admin/reports', adminReportsRouter);
+app.use('/internal/reminders', remindersRouter);
 
 app.use(notFound);
 app.use(errorHandler);
