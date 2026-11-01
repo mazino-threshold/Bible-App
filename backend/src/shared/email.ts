@@ -1,4 +1,5 @@
 import { env } from '../config/env';
+import { logger } from './logger';
 
 interface Email {
   to: string;
@@ -11,14 +12,18 @@ interface Email {
 export async function sendEmail(email: Email): Promise<void> {
   switch (env.EMAIL_PROVIDER) {
     case 'brevo':
-      return sendWithBrevo(email);
+      await sendWithBrevo(email);
+      break;
     case 'resend':
-      return sendWithResend(email);
+      await sendWithResend(email);
+      break;
     case 'console':
-      // Development: print the email so you can test without an email provider
-      console.log(`\n--- Email to ${email.to} ---\nSubject: ${email.subject}\n${email.text}\n---------------\n`);
+      // Development only: print the email so you can test without an email provider
+      logger.info(`Email to ${email.to} (not sent, EMAIL_PROVIDER=console)\nSubject: ${email.subject}\n${email.text}`);
       return;
   }
+  // The subject and body are not logged: they contain the login code
+  logger.debug('Email sent', { provider: env.EMAIL_PROVIDER, to: email.to });
 }
 
 // https://developers.brevo.com/reference/sendtransacemail

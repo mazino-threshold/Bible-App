@@ -15,6 +15,9 @@ const schema = z
     NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
     DATABASE_URL: z.url({ message: 'DATABASE_URL must be set to your Neon connection string' }),
 
+    // Defaults to debug in development, info in production
+    LOG_LEVEL: z.preprocess((v) => v || undefined, z.enum(['error', 'warn', 'info', 'debug']).optional()),
+
     // console = print emails to the terminal (development only)
     EMAIL_PROVIDER: z.enum(['console', 'brevo', 'resend']).default('console'),
     EMAIL_FROM_NAME: z.string().min(1).default('Bible App'),

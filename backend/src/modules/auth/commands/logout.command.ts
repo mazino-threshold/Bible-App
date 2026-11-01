@@ -1,3 +1,4 @@
+import { logger } from '../../../shared/logger';
 import type { LogoutInput } from '../auth.schemas';
 import { deletePushToken, deleteSession } from '../data/auth.writes';
 
@@ -7,4 +8,5 @@ export async function logout(sessionId: string, userId: string, input: LogoutInp
   if (input.pushToken) {
     await deletePushToken(input.pushToken, userId);
   }
+  logger.info('User signed out', { sessionId, removedPushToken: Boolean(input.pushToken) });
 }

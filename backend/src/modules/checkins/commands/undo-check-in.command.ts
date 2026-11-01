@@ -1,3 +1,4 @@
+import { logger } from '../../../shared/logger';
 import { todayInNigeria } from '../../../shared/time';
 import type { TodayCheckInDto } from '../checkins.types';
 import { deleteCheckIn } from '../data/checkins.writes';
@@ -9,7 +10,9 @@ export async function undoCheckInToday(userId: string): Promise<TodayCheckInDto>
   const today = todayInNigeria();
   await ensureReadingToday(today);
 
-  await deleteCheckIn(userId, today);
+  const removed = await deleteCheckIn(userId, today);
+  const streak = await getStreak(userId, today);
 
-  return { date: today, checkedIn: false, streak: await getStreak(userId, today) };
+  logger.info(removed ? 'Check-in undone' : 'Undo repeated (was not checked in)', { date: today, streak });
+  return { date: today, checkedIn: false, streak };
 }

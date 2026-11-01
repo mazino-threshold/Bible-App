@@ -1,6 +1,11 @@
 import { app } from './app';
 import { env } from './config/env';
+import { logger } from './shared/logger';
 
 app.listen(env.PORT, () => {
-  console.log(`API running on http://localhost:${env.PORT} (${env.NODE_ENV})`);
+  logger.info(`API running on http://localhost:${env.PORT}`, { env: env.NODE_ENV, logLevel: logger.level });
+});
+
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled promise rejection', { error: reason });
 });

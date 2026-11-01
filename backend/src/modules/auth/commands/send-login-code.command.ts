@@ -1,5 +1,6 @@
 import { sendEmail } from '../../../shared/email';
 import { HttpError } from '../../../shared/errors';
+import { logger } from '../../../shared/logger';
 import { generateLoginCode, sha256 } from '../../../shared/tokens';
 import type { UserRow } from '../../users/users.types';
 import { CODE_TTL_MINUTES, MAX_CODES_PER_HOUR } from '../auth.constants';
@@ -11,9 +12,11 @@ import { loginCodeEmail } from '../templates/login-code.email';
 export async function sendLoginCode(user: UserRow): Promise<void> {
   const recent = await countRecentLoginCodes(user.id);
   if (recent.lastMinute > 0) {
+    logger.warn('Login code refused: requested again within a minute', { email: user.email });
     throw new HttpError(429, 'Please wait a minute before requesting another code');
   }
   if (recent.lastHour >= MAX_CODES_PER_HOUR) {
+    logger.warn('Login code refused: hourly limit reached', { email: user.email, lastHour: recent.lastHour });
     throw new HttpError(429, 'Too many codes requested. Please try again in an hour');
   }
 
@@ -26,11 +29,13 @@ export async function sendLoginCode(user: UserRow): Promise<void> {
   try {
     await sendEmail({ to: user.email, ...loginCodeEmail(user.name, code, CODE_TTL_MINUTES) });
   } catch (err) {
-    console.error('Failed to send login code', err);
+    logger.error('Failed to send login code', { email: user.email, error: err });
     // Remove the unsent code so it doesn't count against the user's limits
     await deleteLoginCode(codeId);
     throw new HttpError(502, "We couldn't send the email. Please try again shortly");
   }
+
+  logger.info('Login code sent', { email: user.email, codeId });
 }
 
 export function hashLoginCode(userId: string, code: string): string {

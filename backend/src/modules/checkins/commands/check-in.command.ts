@@ -1,3 +1,4 @@
+import { logger } from '../../../shared/logger';
 import { todayInNigeria } from '../../../shared/time';
 import type { TodayCheckInDto } from '../checkins.types';
 import { insertCheckIn } from '../data/checkins.writes';
@@ -9,7 +10,9 @@ export async function checkInToday(userId: string): Promise<TodayCheckInDto> {
   const today = todayInNigeria();
   await ensureReadingToday(today);
 
-  await insertCheckIn(userId, today);
+  const created = await insertCheckIn(userId, today);
+  const streak = await getStreak(userId, today);
 
-  return { date: today, checkedIn: true, streak: await getStreak(userId, today) };
+  logger.info(created ? 'Checked in' : 'Check-in repeated (already checked in)', { date: today, streak });
+  return { date: today, checkedIn: true, streak };
 }

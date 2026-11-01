@@ -1,3 +1,4 @@
+import { logger } from '../../../shared/logger';
 import { addDays, todayInNigeria, weekStart as weekStartOf } from '../../../shared/time';
 import { getWeek } from '../../schedule/queries/get-week.query';
 import { canToggle, dayStatus } from '../checkins.logic';
@@ -25,6 +26,8 @@ export async function getMyWeek(userId: string, weekStart?: string): Promise<MyW
       canToggle: canToggle(day.date, today, hasReading),
     };
   });
+
+  logger.debug('My week loaded', { weekStart: week.weekStart, daysRead: checked.size, streak });
 
   return {
     today,

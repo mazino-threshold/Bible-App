@@ -24,6 +24,19 @@ npm run make-admin -- someone@example.com
 
 When adding endpoints, add them to `src/docs/openapi.ts` and the Postman collection.
 
+## Logging
+
+Use `logger` from `src/shared/logger.ts` (winston), never `console`, in app code. CLI scripts (`migrate`, `make-admin`) use `console` because their output is for the person at the terminal.
+
+- Every log line written during a request automatically includes its `requestId`, and `userId` once signed in (`shared/request-context.ts`). No need to pass them around.
+- Levels: `error` failures · `warn` refusals (wrong code, rate limit, locked week, non-admin) and slow SQL (>500ms) · `info` things that happened (registered, signed in, checked in, week saved) and finished requests · `http` request started · `debug` every SQL query with duration and row count, and query results.
+- Every request is logged when it starts (`→`, at `http`) and when it finishes (`←`): method, path, status, duration. `/health` is logged at `debug` only.
+- SQL is logged without its values. Personal details (name, phone) are not logged; emails are, for support.
+- Every response has an `X-Request-Id` header; 500 responses also include `requestId` in the body. Search the logs for it to find the error and stack trace.
+- Development prints readable coloured lines; production prints one JSON object per line.
+- `LOG_LEVEL` in `.env`: `error | warn | info | debug` (default `debug` in development, `info` in production).
+- Never log request bodies, tokens or login codes. Pass errors as a field: `logger.error('What failed', { error: err })`.
+
 ## Structure
 
 Code is grouped by feature under `src/modules/`. Each module separates commands (change data) from queries (read data), and keeps HTTP, business logic and SQL in separate layers.
