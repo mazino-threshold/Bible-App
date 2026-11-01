@@ -32,6 +32,11 @@ const weekStartParam = {
 const weekResponse = (description: string) =>
   jsonResponse(description, { type: 'object', properties: { week: ref('Week') } });
 const dayExample = (passage: string) => ({ passage, notes: 'Optional notes' });
+const todayCheckInResponse = (description: string) => jsonResponse(description, ref('TodayCheckIn'));
+const myWeekResponse = jsonResponse("The week with this user's status for each day", {
+  type: 'object',
+  properties: { week: ref('MyWeek') },
+});
 
 export const openApiSpec = {
   openapi: '3.1.0',
@@ -83,6 +88,43 @@ export const openApiSpec = {
                 day: { type: 'string', enum: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] },
                 passage: { type: ['string', 'null'], description: 'null if not scheduled yet' },
                 notes: { type: ['string', 'null'] },
+              },
+            },
+          },
+        },
+      },
+      TodayCheckIn: {
+        type: 'object',
+        properties: {
+          date: { type: 'string', description: "Today's date in Nigeria" },
+          checkedIn: { type: 'boolean' },
+          streak: { type: 'integer' },
+        },
+      },
+      MyWeek: {
+        type: 'object',
+        properties: {
+          today: { type: 'string' },
+          weekStart: { type: 'string' },
+          weekEnd: { type: 'string' },
+          daysRead: { type: 'integer', description: 'Out of 6' },
+          streak: { type: 'integer' },
+          days: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                date: { type: 'string' },
+                day: { type: 'string' },
+                passage: { type: ['string', 'null'] },
+                notes: { type: ['string', 'null'] },
+                status: {
+                  type: 'string',
+                  enum: ['read', 'pending', 'missed', 'upcoming', 'no_reading'],
+                  description:
+                    'read = checked in; pending = today, not yet; missed = past day not checked in; upcoming = future day; no_reading = nothing scheduled',
+                },
+                canToggle: { type: 'boolean', description: 'True only for today when it has a reading' },
               },
             },
           },
@@ -189,6 +231,49 @@ export const openApiSpec = {
         parameters: [weekStartParam],
         responses: {
           200: weekResponse('The week'),
+          400: errorResponse('weekStart is not a Monday'),
+          401: errorResponse('Not signed in'),
+        },
+      },
+    },
+    '/check-ins/today': {
+      post: {
+        tags: ['Check-ins'],
+        summary: "Tick today's reading (today is decided by the server, Nigeria time). Safe to call twice",
+        security: signedIn,
+        responses: {
+          200: todayCheckInResponse('Checked in'),
+          400: errorResponse("Sunday, or no reading scheduled today"),
+          401: errorResponse('Not signed in'),
+        },
+      },
+      delete: {
+        tags: ['Check-ins'],
+        summary: "Untick today's reading. Only today can be undone",
+        security: signedIn,
+        responses: {
+          200: todayCheckInResponse('Check-in removed'),
+          400: errorResponse("Sunday, or no reading scheduled today"),
+          401: errorResponse('Not signed in'),
+        },
+      },
+    },
+    '/check-ins/week': {
+      get: {
+        tags: ['Check-ins'],
+        summary: "This week's readings with my status for each day, plus my streak",
+        security: signedIn,
+        responses: { 200: myWeekResponse, 401: errorResponse('Not signed in') },
+      },
+    },
+    '/check-ins/weeks/{weekStart}': {
+      get: {
+        tags: ['Check-ins'],
+        summary: 'Any week with my status for each day',
+        security: signedIn,
+        parameters: [weekStartParam],
+        responses: {
+          200: myWeekResponse,
           400: errorResponse('weekStart is not a Monday'),
           401: errorResponse('Not signed in'),
         },

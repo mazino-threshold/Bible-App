@@ -207,6 +207,67 @@
       ]
     },
     {
+      "name": "Check-ins",
+      "item": [
+        {
+          "name": "My week (statuses + streak)",
+          "request": { "method": "GET", "url": "{{baseUrl}}/check-ins/week" },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const w = pm.response.json().week;",
+                  "console.log('Today', w.today, '| read', w.daysRead + '/6', '| streak', w.streak);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Check in today",
+          "request": { "method": "POST", "url": "{{baseUrl}}/check-ins/today" },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('checked in', () => pm.expect(pm.response.json().checkedIn).to.eql(true));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Untick today",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/check-ins/today" },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('unticked', () => pm.expect(pm.response.json().checkedIn).to.eql(false));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A specific week",
+          "request": { "method": "GET", "url": "{{baseUrl}}/check-ins/weeks/{{weekStart}}" },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('status 200', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Admin: Schedule",
       "description": "Requires signing in as an admin (npm run make-admin -- your@email.com).",
       "item": [

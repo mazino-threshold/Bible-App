@@ -3,6 +3,7 @@ import express from 'express';
 import helmet from 'helmet';
 import { docsRouter } from './docs/docs.routes';
 import { authRouter } from './modules/auth/auth.routes';
+import { checkInsRouter } from './modules/checkins/checkins.routes';
 import { healthRouter } from './modules/health/health.routes';
 import { adminScheduleRouter, scheduleRouter } from './modules/schedule/schedule.routes';
 import { meRouter } from './modules/users/users.routes';
@@ -25,6 +26,7 @@ app.use('/auth', authRouter);
 app.use('/me', meRouter);
 app.use('/schedule', scheduleRouter);
 app.use('/admin/schedule', adminScheduleRouter);
+app.use('/check-ins', checkInsRouter);
 
 app.use(notFound);
 app.use(errorHandler);
