@@ -20,7 +20,7 @@ const schema = z
 
     // console = print emails to the terminal (development only)
     EMAIL_PROVIDER: z.enum(['console', 'brevo', 'resend']).default('console'),
-    EMAIL_FROM_NAME: z.string().min(1).default('Bible App'),
+    EMAIL_FROM_NAME: z.string().min(1).default('Brethren Bible Reading Club'),
     EMAIL_FROM_ADDRESS: optionalString,
     BREVO_API_KEY: optionalString,
     RESEND_API_KEY: optionalString,
