@@ -17,7 +17,21 @@ Make someone an admin (they must register in the app first):
 npm run make-admin -- someone@example.com
 ```
 
-## Testing the API
+## Automated tests
+
+```
+npm test            # everything (about 1.5 minutes)
+npm run test:unit   # pure rules only, no database (under a second)
+npm run test:api    # end-to-end against the database
+```
+
+- `tests/unit/`: streaks, day statuses, reminder slots, report filters, Nigeria time. No database.
+- `tests/api/`: real HTTP calls against the app and database. They fake "today" into 2099 (`setNigeriaTime`), only create data in 2099 or with `test.` emails, and delete it afterwards.
+- No real emails or pushes are sent: codes are read from the logs, and Expo is simulated.
+- They use `DATABASE_URL` from `.env`, or `TEST_DATABASE_URL` if set (recommended: a separate Neon branch). They refuse to run with `NODE_ENV=production`.
+- Set `TEST_LOGS=1` to see the app's logs while tests run.
+
+## Testing the API by hand
 
 - **Swagger UI:** http://localhost:4000/docs (raw spec at `/docs/openapi.json`). Sign in with register/request-code → verify-code, then click **Authorize** and paste the token.
 - **Postman:** import `postman/bible-app.postman_collection.json`, set the `email`/`name`/`phone` collection variables, and put the emailed code in `code` before running **Verify code**. The token is saved automatically.

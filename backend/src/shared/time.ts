@@ -10,17 +10,6 @@ const dateFormatter = new Intl.DateTimeFormat('en-CA', {
   day: '2-digit',
 });
 
-const hourFormatter = new Intl.DateTimeFormat('en-GB', {
-  timeZone: APP_TIME_ZONE,
-  hour: '2-digit',
-  hourCycle: 'h23',
-});
-
-/** Today's date in Nigeria as 'YYYY-MM-DD'. */
-export function todayInNigeria(now: Date = new Date()): string {
-  return dateFormatter.format(now);
-}
-
 const minuteFormatter = new Intl.DateTimeFormat('en-GB', {
   timeZone: APP_TIME_ZONE,
   hour: '2-digit',
@@ -28,15 +17,26 @@ const minuteFormatter = new Intl.DateTimeFormat('en-GB', {
   hourCycle: 'h23',
 });
 
-/** Minutes since midnight in Nigeria, e.g. 6:05 AM -> 365. */
-export function minutesIntoDayInNigeria(now: Date = new Date()): number {
-  const [hours, minutes] = minuteFormatter.format(now).split(':').map(Number);
-  return hours! * 60 + minutes!;
+const realClock = () => new Date();
+let clock = realClock;
+
+/**
+ * Tests only: makes the whole app believe it is a different moment, e.g.
+ * setClockForTests(() => new Date('2099-01-07T09:00:00+01:00')). Call with no argument to restore the real clock.
+ */
+export function setClockForTests(fn?: () => Date): void {
+  clock = fn ?? realClock;
 }
 
-/** The current hour (0-23) in Nigeria. */
-export function hourInNigeria(now: Date = new Date()): number {
-  return Number(hourFormatter.format(now));
+/** Today's date in Nigeria as 'YYYY-MM-DD'. */
+export function todayInNigeria(now: Date = clock()): string {
+  return dateFormatter.format(now);
+}
+
+/** Minutes since midnight in Nigeria, e.g. 6:05 AM -> 365. */
+export function minutesIntoDayInNigeria(now: Date = clock()): number {
+  const [hours, minutes] = minuteFormatter.format(now).split(':').map(Number);
+  return hours! * 60 + minutes!;
 }
 
 /** Day of week for a 'YYYY-MM-DD' date: 1 = Monday ... 7 = Sunday. */
