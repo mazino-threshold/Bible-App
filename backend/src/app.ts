@@ -5,6 +5,7 @@ import { docsRouter } from './docs/docs.routes';
 import { authRouter } from './modules/auth/auth.routes';
 import { checkInsRouter } from './modules/checkins/checkins.routes';
 import { healthRouter } from './modules/health/health.routes';
+import { adminReportsRouter } from './modules/reports/reports.routes';
 import { adminScheduleRouter, scheduleRouter } from './modules/schedule/schedule.routes';
 import { meRouter } from './modules/users/users.routes';
 import { errorHandler, notFound } from './shared/errors';
@@ -30,6 +31,7 @@ app.use('/me', meRouter);
 app.use('/schedule', scheduleRouter);
 app.use('/admin/schedule', adminScheduleRouter);
 app.use('/check-ins', checkInsRouter);
+app.use('/admin/reports', adminReportsRouter);
 
 app.use(notFound);
 app.use(errorHandler);

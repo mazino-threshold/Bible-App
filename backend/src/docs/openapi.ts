@@ -32,7 +32,24 @@ const weekStartParam = {
 const weekResponse = (description: string) =>
   jsonResponse(description, { type: 'object', properties: { week: ref('Week') } });
 const dayExample = (passage: string) => ({ passage, notes: 'Optional notes' });
-const todayCheckInResponse = (description: string) => jsonResponse(description, ref('TodayCheckIn'));
+const reportFilterParams = [
+  {
+    name: 'minDays',
+    in: 'query',
+    required: false,
+    description: 'Only users who read at least this many days (0-6)',
+    schema: { type: 'integer', minimum: 0, maximum: 6 },
+  },
+  {
+    name: 'maxDays',
+    in: 'query',
+    required: false,
+    description: 'Only users who read at most this many days (0-6)',
+    schema: { type: 'integer', minimum: 0, maximum: 6 },
+  },
+];
+const reportResponse = jsonResponse('The weekly report', { type: 'object', properties: { report: ref('WeeklyReport') } });
+const todayCheckInResponse =(description: string) => jsonResponse(description, ref('TodayCheckIn'));
 const myWeekResponse = jsonResponse("The week with this user's status for each day", {
   type: 'object',
   properties: { week: ref('MyWeek') },
@@ -88,6 +105,42 @@ export const openApiSpec = {
                 day: { type: 'string', enum: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] },
                 passage: { type: ['string', 'null'], description: 'null if not scheduled yet' },
                 notes: { type: ['string', 'null'] },
+              },
+            },
+          },
+        },
+      },
+      WeeklyReport: {
+        type: 'object',
+        properties: {
+          weekStart: { type: 'string' },
+          weekEnd: { type: 'string' },
+          daysScheduled: { type: 'integer', description: 'Days with a reading this week (normally 6)' },
+          summary: {
+            type: 'object',
+            description: 'Totals over everyone, before filters',
+            properties: {
+              totalUsers: { type: 'integer' },
+              readEveryDay: { type: 'integer' },
+              averageDaysRead: { type: 'number' },
+            },
+          },
+          filters: {
+            type: 'object',
+            properties: { minDays: { type: ['integer', 'null'] }, maxDays: { type: ['integer', 'null'] } },
+          },
+          users: {
+            type: 'array',
+            description: 'Most days read first, then by name. Includes admins.',
+            items: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                name: { type: 'string' },
+                email: { type: 'string' },
+                role: { type: 'string', enum: ['user', 'admin'] },
+                daysRead: { type: 'integer' },
+                checkedInDates: { type: 'array', items: { type: 'string' } },
               },
             },
           },
@@ -276,6 +329,34 @@ export const openApiSpec = {
           200: myWeekResponse,
           400: errorResponse('weekStart is not a Monday'),
           401: errorResponse('Not signed in'),
+        },
+      },
+    },
+    '/admin/reports/weekly/current': {
+      get: {
+        tags: ['Admin: Reports'],
+        summary: "This week's report (on Sunday, the week that just ended)",
+        security: signedIn,
+        parameters: reportFilterParams,
+        responses: {
+          200: reportResponse,
+          400: errorResponse('Invalid filters'),
+          401: errorResponse('Not signed in'),
+          403: errorResponse('Not an admin'),
+        },
+      },
+    },
+    '/admin/reports/weekly/{weekStart}': {
+      get: {
+        tags: ['Admin: Reports'],
+        summary: "Any week's report",
+        security: signedIn,
+        parameters: [weekStartParam, ...reportFilterParams],
+        responses: {
+          200: reportResponse,
+          400: errorResponse('Invalid filters or weekStart is not a Monday'),
+          401: errorResponse('Not signed in'),
+          403: errorResponse('Not an admin'),
         },
       },
     },

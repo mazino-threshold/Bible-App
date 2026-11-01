@@ -306,6 +306,84 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Admin: Reports",
+      "description": "Requires signing in as an admin.",
+      "item": [
+        {
+          "name": "This week's report",
+          "request": { "method": "GET", "url": "{{baseUrl}}/admin/reports/weekly/current" },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json().report;",
+                  "console.log(r.weekStart, '|', r.summary.totalUsers, 'users |', r.summary.readEveryDay, 'read every day | avg', r.summary.averageDaysRead);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "A week's report",
+          "request": { "method": "GET", "url": "{{baseUrl}}/admin/reports/weekly/{{weekStart}}" },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('status 200', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read every day (minDays=6)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/admin/reports/weekly/{{weekStart}}?minDays=6",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "reports", "weekly", "{{weekStart}}"],
+              "query": [{ "key": "minDays", "value": "6" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('status 200', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Read 3 days or fewer (maxDays=3)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/admin/reports/weekly/{{weekStart}}?maxDays=3",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "reports", "weekly", "{{weekStart}}"],
+              "query": [{ "key": "maxDays", "value": "3" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('status 200', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
 }
