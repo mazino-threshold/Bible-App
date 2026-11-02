@@ -19,5 +19,5 @@ export function reminderMessage(hour: ReminderHour, passage: string): { title: s
   if (hour === 21) {
     return { title: "Last call for today's reading", body: `${passage}. Tick it off before midnight.` };
   }
-  return { title: "Have you read today's portion?", body: `${passage}. Tick it off once you've read.` };
+  return { title: "Bible reading reminder", body: `${passage}. Tick it off once you've read.` };
 }
