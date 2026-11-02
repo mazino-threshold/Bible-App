@@ -79,7 +79,7 @@ describe('reminders', () => {
     setNigeriaTime(TODAY, '15:00');
     await run();
     const message = fakeExpo.calls[0]![0]!;
-    assert.equal(message.title, "Have you read today's portion?");
+    assert.equal(message.title, "Bible reading reminder");
     assert.match(message.body, /^Genesis 1-3/);
     assert.deepEqual(message.data, { type: 'reading_reminder', date: TODAY });
   });

@@ -46,7 +46,7 @@ describe('reminder message', () => {
   it('greets in the morning, nudges in the day, and gives a last call at night', () => {
     assert.equal(reminderMessage(6, 'Genesis 1-3').title, "Good morning! Today's reading");
     assert.equal(reminderMessage(6, 'Genesis 1-3').body, 'Genesis 1-3');
-    assert.equal(reminderMessage(12, 'Genesis 1-3').title, "Have you read today's portion?");
+    assert.equal(reminderMessage(12, 'Genesis 1-3').title, "Bible reading reminder");
     assert.match(reminderMessage(21, 'Genesis 1-3').body, /before midnight/);
   });
 });
