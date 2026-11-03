@@ -45,3 +45,47 @@ export async function setUserRoleByEmail(email: string, role: Role): Promise<Use
   );
   return rows[0];
 }
+
+/**
+ * Deactivates an active user, records it in their history, and signs them out everywhere
+ * (sessions, unused login codes and push tokens), all in one statement.
+ * Returns undefined if no active user has this id.
+ */
+export async function deactivateUser(id: string, reason: string | null, adminId: string): Promise<UserRow | undefined> {
+  const { rows } = await db.query<UserRow>(
+    `WITH updated AS (
+       UPDATE users SET deactivated_at = now(), deactivation_reason = $2
+        WHERE id = $1 AND deactivated_at IS NULL
+        RETURNING ${userColumns()}
+     ), history AS (
+       INSERT INTO user_status_changes (user_id, action, reason, changed_by)
+       SELECT id, 'deactivated', $2, $3 FROM updated
+     ), sessions_removed AS (
+       DELETE FROM sessions WHERE user_id IN (SELECT id FROM updated)
+     ), codes_retired AS (
+       UPDATE login_codes SET used_at = now() WHERE used_at IS NULL AND user_id IN (SELECT id FROM updated)
+     ), push_tokens_removed AS (
+       DELETE FROM push_tokens WHERE user_id IN (SELECT id FROM updated)
+     )
+     SELECT * FROM updated`,
+    [id, reason, adminId],
+  );
+  return rows[0];
+}
+
+/** Reactivates a deactivated user and records it in their history. Returns undefined if no deactivated user has this id. */
+export async function reactivateUser(id: string, reason: string | null, adminId: string): Promise<UserRow | undefined> {
+  const { rows } = await db.query<UserRow>(
+    `WITH updated AS (
+       UPDATE users SET deactivated_at = NULL, deactivation_reason = NULL
+        WHERE id = $1 AND deactivated_at IS NOT NULL
+        RETURNING ${userColumns()}
+     ), history AS (
+       INSERT INTO user_status_changes (user_id, action, reason, changed_by)
+       SELECT id, 'reactivated', $2, $3 FROM updated
+     )
+     SELECT * FROM updated`,
+    [id, reason, adminId],
+  );
+  return rows[0];
+}

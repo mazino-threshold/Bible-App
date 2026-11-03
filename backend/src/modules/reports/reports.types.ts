@@ -6,6 +6,7 @@ export interface WeeklyReportRow {
   name: string;
   email: string;
   role: Role;
+  active: boolean;
   days_read: number;
   checked_in_dates: string[];
 }
@@ -15,6 +16,8 @@ export interface ReportUserDto {
   name: string;
   email: string;
   role: Role;
+  /** Whether the account is active now (someone deactivated mid-week still appears for that week). */
+  active: boolean;
   daysRead: number;
   checkedInDates: string[];
 }

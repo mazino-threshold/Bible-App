@@ -47,6 +47,15 @@ Push reminders go out at 6, 9, 12, 15, 18 and 21 Nigeria time, Mon–Sat, to use
 - Each slot is sent at most once per day (`reminder_runs` table), so retries or double calls are safe.
 - Locally, leave `CRON_SECRET` empty and send `{ "hour": 6 }` to run a slot immediately (refused in production).
 
+## Deactivating users
+
+Admins can deactivate someone who keeps defaulting or has left (`POST /admin/users/{id}/deactivate`, optional `reason`) and reactivate them when they come back (`POST /admin/users/{id}/reactivate`). `GET /admin/users?status=active|deactivated|all` lists everyone.
+
+- A deactivated user is signed out on every device, their push tokens are removed, and sign-in is refused (403) until they're reactivated. Their check-ins are kept.
+- Weekly reports leave out anyone deactivated for the whole of that week. Someone deactivated mid-week still shows for that week, with `active: false`.
+- Every change is recorded in `user_status_changes` (who, when, reason), which is how past reports stay correct.
+- An admin can't deactivate themselves.
+
 ## Logging
 
 Use `logger` from `src/shared/logger.ts` (winston), never `console`, in app code. CLI scripts (`migrate`, `make-admin`) use `console` because their output is for the person at the terminal.

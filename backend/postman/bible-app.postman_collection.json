@@ -13,7 +13,8 @@
     { "key": "token", "value": "" },
     { "key": "weekStart", "value": "2026-11-02", "description": "A Monday, YYYY-MM-DD" },
     { "key": "pushToken", "value": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]" },
-    { "key": "cronSecret", "value": "", "description": "CRON_SECRET from .env (leave empty in development if not set)" }
+    { "key": "cronSecret", "value": "", "description": "CRON_SECRET from .env (leave empty in development if not set)" },
+    { "key": "userId", "value": "", "description": "The user to deactivate / reactivate (from List users)" }
   ],
   "auth": {
     "type": "bearer",
@@ -470,6 +471,85 @@
               "script": {
                 "type": "text/javascript",
                 "exec": ["pm.test('status 200', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin: Users",
+      "description": "Requires signing in as an admin. Run List users, then put the person's id in the userId variable.",
+      "item": [
+        {
+          "name": "List users",
+          "request": { "method": "GET", "url": "{{baseUrl}}/admin/users" },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.response.json().users.forEach((u) => console.log(u.id, '|', u.name, '|', u.active ? 'active' : 'deactivated'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List deactivated users",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/admin/users?status=deactivated",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "users"],
+              "query": [{ "key": "status", "value": "deactivated" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('status 200', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Deactivate a user",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Missed three weeks in a row\"\n}" },
+            "url": "{{baseUrl}}/admin/users/{{userId}}/deactivate"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('deactivated', () => pm.expect(pm.response.json().user.active).to.equal(false));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reactivate a user",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Back from travel\"\n}" },
+            "url": "{{baseUrl}}/admin/users/{{userId}}/reactivate"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('reactivated', () => pm.expect(pm.response.json().user.active).to.equal(true));"]
               }
             }
           ]

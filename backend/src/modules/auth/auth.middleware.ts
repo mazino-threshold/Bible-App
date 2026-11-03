@@ -3,6 +3,7 @@ import { HttpError } from '../../shared/errors';
 import { logger } from '../../shared/logger';
 import { setContextUser } from '../../shared/request-context';
 import type { UserRow } from '../users/users.types';
+import { ensureActive } from './commands/ensure-active';
 import { touchSession } from './data/auth.writes';
 import { getSessionUser } from './queries/get-session-user.query';
 
@@ -19,6 +20,8 @@ export const requireAuth: RequestHandler = async (req, _res, next) => {
     logger.warn('Auth: unknown or expired session token');
     throw new HttpError(401, 'Your session has expired. Please sign in again');
   }
+  // Deactivating removes the user's sessions; this covers a request already in flight at that moment
+  ensureActive(session.user);
 
   req.user = session.user;
   req.sessionId = session.sessionId;
