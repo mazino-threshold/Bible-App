@@ -9,7 +9,7 @@ import { pushTokensRouter } from './modules/push/push.routes';
 import { remindersRouter } from './modules/reminders/reminders.routes';
 import { adminReportsRouter } from './modules/reports/reports.routes';
 import { adminScheduleRouter, scheduleRouter } from './modules/schedule/schedule.routes';
-import { meRouter } from './modules/users/users.routes';
+import { adminUsersRouter, meRouter } from './modules/users/users.routes';
 import { errorHandler, notFound } from './shared/errors';
 import { requestLogger } from './shared/request-logger';
 
@@ -36,6 +36,7 @@ app.use('/schedule', scheduleRouter);
 app.use('/admin/schedule', adminScheduleRouter);
 app.use('/check-ins', checkInsRouter);
 app.use('/admin/reports', adminReportsRouter);
+app.use('/admin/users', adminUsersRouter);
 app.use('/internal/reminders', remindersRouter);
 
 app.use(notFound);

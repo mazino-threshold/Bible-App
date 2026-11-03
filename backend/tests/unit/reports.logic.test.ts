@@ -8,6 +8,7 @@ const row = (name: string, days_read: number): WeeklyReportRow => ({
   name,
   email: `${name}@example.com`,
   role: 'user',
+  active: true,
   days_read,
   checked_in_dates: [],
 });

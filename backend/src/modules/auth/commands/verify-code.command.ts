@@ -8,6 +8,7 @@ import { MAX_CODE_ATTEMPTS } from '../auth.constants';
 import type { VerifyCodeInput } from '../auth.schemas';
 import { findActiveLoginCode } from '../data/auth.reads';
 import { incrementLoginCodeAttempts, insertSession, markLoginCodeUsed } from '../data/auth.writes';
+import { ensureActive } from './ensure-active';
 import { hashLoginCode } from './send-login-code.command';
 
 /** Exchanges a valid login code for a session token. */
@@ -17,6 +18,7 @@ export async function verifyCode(input: VerifyCodeInput): Promise<{ token: strin
     logger.warn('Sign-in failed: no account with this email', { email: input.email });
     throw new HttpError(400, 'Incorrect code');
   }
+  ensureActive(user);
 
   const loginCode = await findActiveLoginCode(user.id);
   if (!loginCode || loginCode.expired) {

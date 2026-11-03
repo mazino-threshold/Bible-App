@@ -1,4 +1,14 @@
-const USER_FIELDS = ['id', 'name', 'email', 'phone', 'role', 'reminder_frequency', 'created_at'];
+const USER_FIELDS = [
+  'id',
+  'name',
+  'email',
+  'phone',
+  'role',
+  'reminder_frequency',
+  'created_at',
+  'deactivated_at',
+  'deactivation_reason',
+];
 
 /** Column list for SELECTs, e.g. userColumns('u.') -> 'u.id, u.name, ...' */
 export function userColumns(prefix = ''): string {

@@ -44,6 +44,9 @@ describe('reminders', () => {
     await addUser('read', 'high', ['read'], true); // already checked in today
     await addUser('notoken', 'high', []);
     await addUser('twophones', 'high', ['phoneA', 'phoneB-DEAD']);
+    // Deactivated users get nothing, even if a device was somehow left registered
+    const gone = await addUser('deactivated', 'high', ['deactivated']);
+    await pool.query('UPDATE users SET deactivated_at = now() WHERE id = $1', [gone]);
   });
   beforeEach(() => fakeExpo.reset());
   after(async () => {

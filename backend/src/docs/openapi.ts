@@ -5,7 +5,7 @@ import { logoutSchema, registerSchema, requestCodeSchema, verifyCodeSchema } fro
 import { pushTokenSchema } from '../modules/push/push.schemas';
 import { runRemindersSchema } from '../modules/reminders/reminders.schemas';
 import { saveWeekSchema } from '../modules/schedule/schedule.schemas';
-import { updateProfileSchema } from '../modules/users/users.schemas';
+import { statusChangeSchema, updateProfileSchema } from '../modules/users/users.schemas';
 
 function schemaOf(zodSchema: z.ZodType) {
   const { $schema, ...jsonSchema } = z.toJSONSchema(zodSchema, { io: 'input' });
@@ -50,6 +50,15 @@ const reportFilterParams = [
     schema: { type: 'integer', minimum: 0, maximum: 6 },
   },
 ];
+const userIdParam = {
+  name: 'id',
+  in: 'path',
+  required: true,
+  description: "The user's id",
+  schema: { type: 'string', format: 'uuid' },
+};
+const adminUserResponse = (description: string) =>
+  jsonResponse(description, { type: 'object', properties: { user: ref('AdminUser') } });
 const reportResponse = jsonResponse('The weekly report', { type: 'object', properties: { report: ref('WeeklyReport') } });
 const todayCheckInResponse =(description: string) => jsonResponse(description, ref('TodayCheckIn'));
 const myWeekResponse = jsonResponse("The week with this user's status for each day", {
@@ -99,6 +108,19 @@ export const openApiSpec = {
           createdAt: { type: 'string', format: 'date-time' },
         },
       },
+      AdminUser: {
+        allOf: [
+          ref('User'),
+          {
+            type: 'object',
+            properties: {
+              active: { type: 'boolean' },
+              deactivatedAt: { type: ['string', 'null'], format: 'date-time' },
+              deactivationReason: { type: ['string', 'null'] },
+            },
+          },
+        ],
+      },
       Week: {
         type: 'object',
         properties: {
@@ -139,7 +161,8 @@ export const openApiSpec = {
           },
           users: {
             type: 'array',
-            description: 'Most days read first, then by name. Includes admins.',
+            description:
+              'Most days read first, then by name. Includes admins. Leaves out anyone who was deactivated for the whole week.',
             items: {
               type: 'object',
               properties: {
@@ -147,6 +170,7 @@ export const openApiSpec = {
                 name: { type: 'string' },
                 email: { type: 'string' },
                 role: { type: 'string', enum: ['user', 'admin'] },
+                active: { type: 'boolean', description: 'Active now. Someone deactivated mid-week still appears for that week' },
                 daysRead: { type: 'integer' },
                 checkedInDates: { type: 'array', items: { type: 'string' } },
               },
@@ -226,6 +250,7 @@ export const openApiSpec = {
         requestBody: jsonBody(requestCodeSchema, { email: 'ada@example.com' }),
         responses: {
           200: jsonResponse('Code emailed', message),
+          403: errorResponse('Account deactivated'),
           404: errorResponse('No account with this email'),
           429: errorResponse('Max 1 code per minute, 5 per hour'),
         },
@@ -242,6 +267,7 @@ export const openApiSpec = {
             properties: { token: { type: 'string' }, user: ref('User') },
           }),
           400: errorResponse('Incorrect, expired or locked code'),
+          403: errorResponse('Account deactivated'),
         },
       },
     },
@@ -420,6 +446,64 @@ export const openApiSpec = {
           400: errorResponse('Invalid filters or weekStart is not a Monday'),
           401: errorResponse('Not signed in'),
           403: errorResponse('Not an admin'),
+        },
+      },
+    },
+    '/admin/users': {
+      get: {
+        tags: ['Admin: Users'],
+        summary: 'Everyone, by name, with whether they are active',
+        security: signedIn,
+        parameters: [
+          {
+            name: 'status',
+            in: 'query',
+            required: false,
+            description: 'Default all',
+            schema: { type: 'string', enum: ['active', 'deactivated', 'all'] },
+          },
+        ],
+        responses: {
+          200: jsonResponse('Users', { type: 'object', properties: { users: { type: 'array', items: ref('AdminUser') } } }),
+          400: errorResponse('Invalid status'),
+          401: errorResponse('Not signed in'),
+          403: errorResponse('Not an admin'),
+        },
+      },
+    },
+    '/admin/users/{id}/deactivate': {
+      post: {
+        tags: ['Admin: Users'],
+        summary: 'Deactivate a user (e.g. defaulting, or has left). Safe to call twice',
+        description:
+          'Signs them out on every device and stops their reminders. They cannot sign in until reactivated. ' +
+          'Their check-ins are kept. They are left out of weekly reports for weeks they were deactivated throughout.',
+        security: signedIn,
+        parameters: [userIdParam],
+        requestBody: { ...jsonBody(statusChangeSchema, { reason: 'Missed three weeks in a row' }), required: false },
+        responses: {
+          200: adminUserResponse('The deactivated user'),
+          400: errorResponse('Invalid id, or trying to deactivate yourself'),
+          401: errorResponse('Not signed in'),
+          403: errorResponse('Not an admin'),
+          404: errorResponse('No such user'),
+        },
+      },
+    },
+    '/admin/users/{id}/reactivate': {
+      post: {
+        tags: ['Admin: Users'],
+        summary: 'Let a deactivated user back in. Safe to call twice',
+        description: 'They sign in again with an emailed code as usual.',
+        security: signedIn,
+        parameters: [userIdParam],
+        requestBody: { ...jsonBody(statusChangeSchema, { reason: 'Back from travel' }), required: false },
+        responses: {
+          200: adminUserResponse('The reactivated user'),
+          400: errorResponse('Invalid id'),
+          401: errorResponse('Not signed in'),
+          403: errorResponse('Not an admin'),
+          404: errorResponse('No such user'),
         },
       },
     },

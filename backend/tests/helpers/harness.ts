@@ -157,11 +157,11 @@ export async function startApi(): Promise<TestApi> {
 
 // ---------- Test data ----------
 
-/** Deletes test users (by email prefix) and everything from 2099 onwards. */
+/** Deletes test users (by email prefix) and everything from December 2098 onwards (some tests use the week before 2099-01-05). */
 export async function deleteTestData(emailPrefix: string): Promise<void> {
   await pool.query('DELETE FROM users WHERE email LIKE $1', [`${emailPrefix}%`]);
-  await pool.query("DELETE FROM readings WHERE reading_date >= '2099-01-01'");
-  await pool.query("DELETE FROM reminder_runs WHERE reminder_date >= '2099-01-01'");
+  await pool.query("DELETE FROM readings WHERE reading_date >= '2098-12-01'");
+  await pool.query("DELETE FROM reminder_runs WHERE reminder_date >= '2098-12-01'");
 }
 
 /** Inserts a user directly (faster than signing up) and returns their id. */
