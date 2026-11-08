@@ -56,6 +56,22 @@ Admins can deactivate someone who keeps defaulting or has left (`POST /admin/use
 - Every change is recorded in `user_status_changes` (who, when, reason), which is how past reports stay correct.
 - An admin can't deactivate themselves.
 
+## Community links
+
+The home screen shows a card for each active row in `community_links` (`GET /community`, signed-in users only). There's no admin screen yet, so change them in the database:
+
+```sql
+-- Change the WhatsApp link
+UPDATE community_links SET url = 'https://chat.whatsapp.com/NEW', updated_at = now() WHERE platform = 'whatsapp';
+
+-- Move to another platform: add the new link and retire the old one
+INSERT INTO community_links (platform, title, description, button_label, url)
+VALUES ('telegram', 'Join our community', 'Have questions while you read Scripture or want an accountability community? Join our community.', 'Join on Telegram', 'https://t.me/...');
+UPDATE community_links SET active = false WHERE platform = 'whatsapp';
+```
+
+`platform` only picks the icon in the app (`whatsapp`, `telegram` and `discord` have their own; anything else gets a generic one). URLs must start with `https://`.
+
 ## Logging
 
 Use `logger` from `src/shared/logger.ts` (winston), never `console`, in app code. CLI scripts (`migrate`, `make-admin`) use `console` because their output is for the person at the terminal.

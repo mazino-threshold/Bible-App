@@ -108,6 +108,17 @@ export const openApiSpec = {
           createdAt: { type: 'string', format: 'date-time' },
         },
       },
+      CommunityLink: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          platform: { type: 'string', description: "Which app the link opens, e.g. 'whatsapp' or 'telegram'" },
+          title: { type: 'string' },
+          description: { type: 'string' },
+          buttonLabel: { type: 'string' },
+          url: { type: 'string', format: 'uri' },
+        },
+      },
       AdminUser: {
         allOf: [
           ref('User'),
@@ -417,6 +428,20 @@ export const openApiSpec = {
         responses: {
           200: myWeekResponse,
           400: errorResponse('weekStart is not a Monday'),
+          401: errorResponse('Not signed in'),
+        },
+      },
+    },
+    '/community': {
+      get: {
+        tags: ['Community'],
+        summary: "Links to the club's community groups (e.g. WhatsApp), in display order. Empty if there are none",
+        security: signedIn,
+        responses: {
+          200: jsonResponse('The active community links', {
+            type: 'object',
+            properties: { links: { type: 'array', items: ref('CommunityLink') } },
+          }),
           401: errorResponse('Not signed in'),
         },
       },
