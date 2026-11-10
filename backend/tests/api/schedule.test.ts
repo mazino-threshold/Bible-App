@@ -47,6 +47,16 @@ describe('schedule', () => {
     assert.deepEqual(r.body.details, [{ field: 'saturday', message: "Enter this day's reading" }]);
   });
 
+  it('only accepts passages the app can fetch the Bible text for', async () => {
+    const form = { ...weekForm('Psalm'), tuesday: { passage: 'Genisis 1-3' }, friday: { passage: 'Genesis 49-51' } };
+    const r = await api.request('PUT', `/admin/schedule/weeks/${NEXT_WEEK}`, { token: adminToken, body: form });
+    assert.equal(r.status, 400);
+    assert.deepEqual(r.body.details, [
+      { field: 'tuesday.passage', message: `"Genisis" isn't a book of the Bible we recognise` },
+      { field: 'friday.passage', message: "Genesis has 50 chapters, so there's no chapter 51" },
+    ]);
+  });
+
   it('requires weekStart to be a real Monday', async () => {
     const tuesday = await api.request('PUT', '/admin/schedule/weeks/2099-01-06', { token: adminToken, body: weekForm('Psalm') });
     assert.equal(tuesday.status, 400);

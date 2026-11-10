@@ -17,3 +17,6 @@ process.env.NODE_ENV = 'test';
 // Never send real emails from tests: codes are printed to the logger instead, where the tests capture them
 process.env.EMAIL_PROVIDER = 'console';
 process.env.CRON_SECRET = 'test-cron-secret-1234567890';
+// YouVersion is simulated by the harness; this key is never sent anywhere real
+process.env.YOUVERSION_APP_KEY = 'test-youversion-key';
+process.env.YOUVERSION_BIBLE_ID = '111';

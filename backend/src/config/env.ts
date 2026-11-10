@@ -29,6 +29,11 @@ const schema = z
     CRON_SECRET: optionalString.refine((v) => v === undefined || v.length >= 16, 'must be at least 16 characters'),
     // Only needed if "Enhanced push security" is turned on in your Expo account
     EXPO_ACCESS_TOKEN: optionalString,
+
+    // YouVersion Platform app key (platform.youversion.com), used to fetch the day's Bible text
+    YOUVERSION_APP_KEY: optionalString,
+    // Which Bible version to show. 111 = NIV 2011 (needs the Biblica Fast-track licence accepted in the Platform portal)
+    YOUVERSION_BIBLE_ID: z.coerce.number().int().positive().default(111),
   })
   .superRefine((env, ctx) => {
     const require = (key: keyof typeof env, why: string) => {
@@ -40,6 +45,7 @@ const schema = z
     }
     if (env.NODE_ENV === 'production') {
       require('CRON_SECRET', 'required in production, so only your cron job can trigger reminders');
+      require('YOUVERSION_APP_KEY', "required in production, to load the day's Bible text");
     }
     if (env.EMAIL_PROVIDER === 'brevo') {
       require('BREVO_API_KEY', 'required when EMAIL_PROVIDER=brevo');
