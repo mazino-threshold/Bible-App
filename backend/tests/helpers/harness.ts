@@ -78,6 +78,33 @@ export const fakeExpo: FakeExpo = {
   },
 };
 
+// ---------- Fake YouVersion Bible API ----------
+
+export interface FakeYouVersion {
+  /** Paths requested, in order, e.g. '/v1/bibles/111/passages/GEN.1'. */
+  calls: string[];
+  /** When true, YouVersion answers 503 to every call. */
+  down: boolean;
+  /** Passage ids answered with 404. */
+  missing: string[];
+  passageCalls(): string[];
+  reset(): void;
+}
+
+export const fakeYouVersion: FakeYouVersion = {
+  calls: [],
+  down: false,
+  missing: [],
+  passageCalls() {
+    return this.calls.filter((c) => c.includes('/passages/')).map((c) => c.split('/passages/')[1]!);
+  },
+  reset() {
+    this.calls = [];
+    this.down = false;
+    this.missing = [];
+  },
+};
+
 // Any push token containing 'DEAD' is answered like an uninstalled app
 globalThis.fetch = async (input, init) => {
   if (String(input).startsWith('https://exp.host/')) {
@@ -90,6 +117,29 @@ globalThis.fetch = async (input, init) => {
         : { status: 'ok', id: 'fake' },
     );
     return Response.json({ data });
+  }
+  if (String(input).startsWith('https://api.youversion.com/')) {
+    const path = new URL(String(input)).pathname;
+    fakeYouVersion.calls.push(decodeURIComponent(path));
+    if (fakeYouVersion.down) return new Response('Service unavailable', { status: 503, headers: { 'Retry-After': '0' } });
+
+    const passage = /^\/v1\/bibles\/\d+\/passages\/([^/]+)$/.exec(path);
+    if (passage) {
+      const id = decodeURIComponent(passage[1]!);
+      if (fakeYouVersion.missing.includes(id)) return Response.json({ message: 'not found' }, { status: 404 });
+      return Response.json({ id, reference: `Reference ${id}`, content: `<div>Text of ${id}</div>` });
+    }
+    const bible = /^\/v1\/bibles\/(\d+)$/.exec(path);
+    if (bible) {
+      return Response.json({
+        id: Number(bible[1]),
+        abbreviation: 'NIV11',
+        localized_abbreviation: 'NIV',
+        title: 'New International Version 2011',
+        copyright: 'Test copyright notice',
+      });
+    }
+    return Response.json({ message: 'Not found' }, { status: 404 });
   }
   return realFetch(input, init);
 };

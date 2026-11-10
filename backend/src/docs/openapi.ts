@@ -368,6 +368,21 @@ export const openApiSpec = {
         },
       },
     },
+    '/internal/passage-cache/clear': {
+      post: {
+        tags: ['Internal: Passages'],
+        summary: 'Empty the Bible text cache of every day before today (called by cron-job.org every Sunday)',
+        description: 'On Sunday that is the whole week. Safe to call on any day or more than once.',
+        security: [{ cronSecret: [] }],
+        responses: {
+          200: jsonResponse('What was cleared', {
+            type: 'object',
+            properties: { date: { type: 'string' }, daysCleared: { type: 'integer' } },
+          }),
+          401: errorResponse('Missing or wrong X-Cron-Secret'),
+        },
+      },
+    },
     '/schedule/current': {
       get: {
         tags: ['Schedule'],
@@ -386,6 +401,59 @@ export const openApiSpec = {
           200: weekResponse('The week'),
           400: errorResponse('weekStart is not a Monday'),
           401: errorResponse('Not signed in'),
+        },
+      },
+    },
+    '/passages/today': {
+      get: {
+        tags: ['Passages'],
+        summary: "Today's reading in full (every chapter), from YouVersion. Today is decided by the server, Nigeria time",
+        description:
+          'The first request of the day fetches the text from YouVersion and saves it; later requests are served from the database ' +
+          "(the cache is cleared every Sunday). If the admin changes today's reading, the new text is fetched on the next request.\n\n" +
+          "`html` is YouVersion's Bible HTML (verse numbers, headings, poetry indents). Style it with " +
+          "`https://cdn.youversion.com/platform/1/bible.css`. **Always show `version.copyright` with the text** (publisher's licence).",
+        security: signedIn,
+        responses: {
+          200: jsonResponse("Today's Bible text", {
+            type: 'object',
+            properties: {
+              passage: {
+                type: 'object',
+                properties: {
+                  date: { type: 'string', example: '2026-11-07' },
+                  passage: { type: 'string', example: 'Genesis 16-18', description: 'The reading as the admin entered it' },
+                  notes: { type: ['string', 'null'] },
+                  version: {
+                    type: 'object',
+                    properties: {
+                      id: { type: 'integer', example: 111 },
+                      abbreviation: { type: 'string', example: 'NIV' },
+                      title: { type: 'string', example: 'New International Version 2011' },
+                      copyright: { type: 'string', description: 'Must be shown with the text' },
+                    },
+                  },
+                  chapters: {
+                    type: 'array',
+                    description: 'In reading order: one per chapter',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        id: { type: 'string', example: 'GEN.16' },
+                        reference: { type: 'string', example: 'Genesis 16' },
+                        html: { type: 'string', example: '<div><div class="s1">Hagar and Ishmael</div><div class="p"><span class="yv-v" v="1"></span><span class="yv-vlbl">1</span>Now Sarai...</div></div>' },
+                      },
+                    },
+                  },
+                  fetchedAt: { type: 'string', format: 'date-time', description: 'When the text was fetched from YouVersion' },
+                },
+              },
+            },
+          }),
+          401: errorResponse('Not signed in'),
+          404: errorResponse('Sunday, or no reading scheduled today'),
+          422: errorResponse("Today's reading couldn't be understood, or isn't in this Bible version"),
+          503: errorResponse('YouVersion could not be reached; try again later'),
         },
       },
     },
@@ -575,7 +643,7 @@ export const openApiSpec = {
         }),
         responses: {
           200: weekResponse('Saved week'),
-          400: errorResponse('Invalid input, not a Monday, or the week has ended'),
+          400: errorResponse(`Invalid input (including a passage the app can't read, e.g. "Genisis 1"), not a Monday, or the week has ended`),
           401: errorResponse('Not signed in'),
           403: errorResponse('Not an admin'),
         },

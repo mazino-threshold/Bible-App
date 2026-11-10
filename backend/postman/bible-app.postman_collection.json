@@ -210,6 +210,31 @@
       ]
     },
     {
+      "name": "Passages",
+      "item": [
+        {
+          "name": "Today's Bible text (full chapters)",
+          "request": { "method": "GET", "url": "{{baseUrl}}/passages/today" },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('has chapters and copyright', () => {",
+                  "  const p = pm.response.json().passage;",
+                  "  pm.expect(p.chapters.length).to.be.above(0);",
+                  "  pm.expect(p.version.copyright).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Check-ins",
       "item": [
         {
@@ -386,6 +411,24 @@
             ],
             "body": { "mode": "raw", "raw": "{\n  \"hour\": 6\n}" },
             "url": "{{baseUrl}}/internal/reminders/run"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('status 200', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Clear passage cache (what the Sunday cron job calls)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "X-Cron-Secret", "value": "{{cronSecret}}" }],
+            "url": "{{baseUrl}}/internal/passage-cache/clear"
           },
           "event": [
             {

@@ -56,6 +56,17 @@ Admins can deactivate someone who keeps defaulting or has left (`POST /admin/use
 - Every change is recorded in `user_status_changes` (who, when, reason), which is how past reports stay correct.
 - An admin can't deactivate themselves.
 
+## Bible text (YouVersion)
+
+`GET /passages/today` returns today's reading in full: every chapter, as YouVersion HTML (verse numbers, headings), with the version's copyright notice.
+
+- The text comes from the [YouVersion Platform API](https://developers.youversion.com/api/bibles), set by `YOUVERSION_APP_KEY` and `YOUVERSION_BIBLE_ID` (default 111 = NIV, which needs the Biblica Fast-track licence accepted in the Platform portal; 3034 = Berean Standard Bible needs none).
+- **Cache:** the first request of the day fetches it (one YouVersion call per chapter) and saves it in `passage_cache`; every request after that is served from the database. It's in the database, not memory, because Render's free plan restarts the server when idle. If the admin changes today's reading, the new text is fetched on the next request.
+- **Sunday clear:** a cron-job.org job calls `POST /internal/passage-cache/clear` with `X-Cron-Secret` every Sunday (e.g. 23:00 Nigeria time). If it's ever missed, last week's rows are removed anyway the next time a day is cached.
+- The admin's weekly form only accepts passages the app can fetch, e.g. `Genesis 1-3`, `Psalm 23; Proverbs 3`, `John 3:1-21`, `Genesis 50 - Exodus 2`, `Jude`. Abbreviations like `Gen`, `1 Cor` and `Ps` work. At most 15 chapters a day.
+- The app must style the HTML with `https://cdn.youversion.com/platform/1/bible.css` and always show `version.copyright` with the text.
+- Tests never call YouVersion: it's simulated in `tests/helpers/harness.ts`.
+
 ## Community links
 
 The home screen shows a card for each active row in `community_links` (`GET /community`, signed-in users only). There's no admin screen yet, so change them in the database:
