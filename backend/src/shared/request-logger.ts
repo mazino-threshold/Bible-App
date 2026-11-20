@@ -14,7 +14,7 @@ export const requestLogger: RequestHandler = (req, res, next) => {
   res.setHeader('X-Request-Id', req.id);
 
   const path = req.originalUrl.split('?')[0];
-  const isHealthCheck = path === '/health';
+  const isHealthCheck = path === '/health' || path === '/health/live';
 
   runWithRequestContext({ requestId: req.id }, () => {
     logger.log(isHealthCheck ? 'debug' : 'http', `→ ${req.method} ${path}`);

@@ -45,6 +45,7 @@ Push reminders go out at 6 AM and 9 PM Nigeria time, Mon–Sat, to users with re
 - The app registers each device with `POST /me/push-tokens` (an Expo push token).
 - An external cron job (cron-job.org) calls `POST /internal/reminders/run` with header `X-Cron-Secret: <CRON_SECRET>` at 6:00 and 21:00 (Mon–Sat is enough; Sunday calls are skipped). The API works out the slot from the clock (±15 min).
 - Each slot is sent at most once per day (`reminder_runs` table), so retries or double calls are safe.
+- **Keep-alive:** Render's free plan puts the server to sleep after about 15 minutes without requests, and waking it takes 30–60 seconds. A cron-job.org job calls `GET /health/live` every 10 minutes from 05:30 to 23:00 Nigeria time, so the server is already awake for the 6:00 reminder and for people using the app. `/health/live` never touches the database, so Neon can still sleep when idle (`/health` does check the database; use it for monitoring, not keep-alive).
 - Locally, leave `CRON_SECRET` empty and send `{ "hour": 6 }` to run a slot immediately (refused in production).
 
 ## Deactivating users
@@ -89,7 +90,7 @@ Use `logger` from `src/shared/logger.ts` (winston), never `console`, in app code
 
 - Every log line written during a request automatically includes its `requestId`, and `userId` once signed in (`shared/request-context.ts`). No need to pass them around.
 - Levels: `error` failures · `warn` refusals (wrong code, rate limit, locked week, non-admin) and slow SQL (>500ms) · `info` things that happened (registered, signed in, checked in, week saved) and finished requests · `http` request started · `debug` every SQL query with duration and row count, and query results.
-- Every request is logged when it starts (`→`, at `http`) and when it finishes (`←`): method, path, status, duration. `/health` is logged at `debug` only.
+- Every request is logged when it starts (`→`, at `http`) and when it finishes (`←`): method, path, status, duration. `/health` and `/health/live` are logged at `debug` only.
 - SQL is logged without its values. Personal details (name, phone) are not logged; emails are, for support.
 - Every response has an `X-Request-Id` header; 500 responses also include `requestId` in the body. Search the logs for it to find the error and stack trace.
 - Development prints readable coloured lines; production prints one JSON object per line.

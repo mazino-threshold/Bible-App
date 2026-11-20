@@ -44,6 +44,23 @@
               }
             }
           ]
+        },
+        {
+          "name": "Keep-alive check (no database; what the keep-alive cron job calls)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": "{{baseUrl}}/health/live"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('status 200', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
         }
       ]
     },

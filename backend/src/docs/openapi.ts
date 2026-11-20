@@ -277,6 +277,18 @@ export const openApiSpec = {
         },
       },
     },
+    '/health/live': {
+      get: {
+        tags: ['Health'],
+        summary: 'Check the API is up, without touching the database (for the keep-alive cron job)',
+        description:
+          "Render's free plan puts the server to sleep after about 15 minutes without requests. A cron job calls this " +
+          'every 10 minutes during waking hours to prevent that. It skips the database so Neon can still sleep when idle.',
+        responses: {
+          200: jsonResponse('OK', { type: 'object', properties: { status: { type: 'string', example: 'ok' } } }),
+        },
+      },
+    },
     '/auth/register': {
       post: {
         tags: ['Auth'],
