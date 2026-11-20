@@ -23,6 +23,8 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --from=build /app/dist ./dist
 COPY migrations ./migrations
+# The built-in list of disposable email domains, read at runtime
+COPY data ./data
 
 # Run as the image's non-root user
 USER node

@@ -2,10 +2,12 @@
 // the API validates with, so the docs stay in sync. Add new endpoints to `paths` as modules are built.
 import { z } from 'zod';
 import { logoutSchema, registerSchema, requestCodeSchema, verifyCodeSchema } from '../modules/auth/auth.schemas';
+import { domainRuleSchema } from '../modules/email-domains/email-domains.schemas';
 import { pushTokenSchema } from '../modules/push/push.schemas';
 import { runRemindersSchema } from '../modules/reminders/reminders.schemas';
 import { saveWeekSchema } from '../modules/schedule/schedule.schemas';
-import { statusChangeSchema, updateProfileSchema } from '../modules/users/users.schemas';
+import { DELETED_ACCOUNT_RETENTION_DAYS } from '../modules/users/users.constants';
+import { roleChangeSchema, statusChangeSchema, updateProfileSchema } from '../modules/users/users.schemas';
 
 function schemaOf(zodSchema: z.ZodType) {
   const { $schema, ...jsonSchema } = z.toJSONSchema(zodSchema, { io: 'input' });
@@ -57,6 +59,13 @@ const userIdParam = {
   description: "The user's id",
   schema: { type: 'string', format: 'uuid' },
 };
+const domainParam = {
+  name: 'domain',
+  in: 'path',
+  required: true,
+  description: 'A domain such as example.com (any case)',
+  schema: { type: 'string' },
+};
 const adminUserResponse = (description: string) =>
   jsonResponse(description, { type: 'object', properties: { user: ref('AdminUser') } });
 const reportResponse = jsonResponse('The weekly report', { type: 'object', properties: { report: ref('WeeklyReport') } });
@@ -104,7 +113,7 @@ export const openApiSpec = {
           email: { type: 'string' },
           phone: { type: 'string' },
           role: { type: 'string', enum: ['user', 'admin'] },
-          reminderFrequency: { type: 'string', enum: ['high', 'mid', 'low', 'off'] },
+          remindersEnabled: { type: 'boolean', description: 'Push reminders at 6 AM and 9 PM on reading days' },
           createdAt: { type: 'string', format: 'date-time' },
         },
       },
@@ -131,6 +140,33 @@ export const openApiSpec = {
             },
           },
         ],
+      },
+      EmailDomainRule: {
+        type: 'object',
+        properties: {
+          domain: { type: 'string', example: 'spam-domain.com' },
+          action: { type: 'string', enum: ['block', 'allow'] },
+          reason: { type: ['string', 'null'] },
+          createdBy: { type: ['string', 'null'], format: 'uuid', description: 'The admin who set it' },
+          createdAt: { type: 'string', format: 'date-time' },
+          updatedAt: { type: 'string', format: 'date-time' },
+        },
+      },
+      DeletedUser: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          name: { type: 'string' },
+          email: { type: 'string' },
+          phone: { type: 'string' },
+          role: { type: 'string', enum: ['user', 'admin'] },
+          requestedBy: { type: 'string', enum: ['user', 'admin'], description: 'Who deleted it: the user, or an admin' },
+          deletedBy: { type: ['string', 'null'], format: 'uuid', description: 'The admin, when requestedBy is admin' },
+          deletionReason: { type: ['string', 'null'] },
+          deletedAt: { type: 'string', format: 'date-time' },
+          purgeAfter: { type: 'string', format: 'date-time', description: 'Erased for good after this' },
+          checkInCount: { type: 'integer' },
+        },
       },
       Week: {
         type: 'object',
@@ -248,7 +284,9 @@ export const openApiSpec = {
         requestBody: jsonBody(registerSchema, { name: 'Ada Obi', email: 'ada@example.com', phone: '+234 803 000 0000' }),
         responses: {
           201: jsonResponse('Account created, code emailed', message),
-          400: errorResponse('Invalid input'),
+          400: errorResponse(
+            'Invalid input, or the email provider is not allowed (disposable email, or a domain an admin blocked)',
+          ),
           409: errorResponse('Email already registered'),
           429: errorResponse('Code requested too recently'),
         },
@@ -303,12 +341,39 @@ export const openApiSpec = {
       },
       patch: {
         tags: ['Profile'],
-        summary: 'Update name, phone or reminder frequency (only the fields sent change)',
+        summary: 'Update name, phone or reminders on/off (only the fields sent change)',
         security: signedIn,
-        requestBody: jsonBody(updateProfileSchema, { reminderFrequency: 'high' }),
+        requestBody: jsonBody(updateProfileSchema, { remindersEnabled: false }),
         responses: {
           200: jsonResponse('Updated profile', { type: 'object', properties: { user: ref('User') } }),
           400: errorResponse('Invalid input'),
+          401: errorResponse('Not signed in'),
+        },
+      },
+      delete: {
+        tags: ['Profile'],
+        summary: 'Delete my account',
+        description:
+          'Signs the user out on every device at once and removes them from the app. ' +
+          `A copy is held until purgeAfter (${DELETED_ACCOUNT_RETENTION_DAYS} days) so an admin can restore it if asked, ` +
+          'then erased for good. The user and the admins are emailed, and admins get a push notification. ' +
+          'The only admin cannot delete their account. The app should show what happens and ask to confirm first.',
+        security: signedIn,
+        requestBody: { ...jsonBody(statusChangeSchema, { reason: 'Not using the app any more' }), required: false },
+        responses: {
+          200: jsonResponse('Deleted', {
+            type: 'object',
+            properties: {
+              deletion: {
+                type: 'object',
+                properties: {
+                  deletedAt: { type: 'string', format: 'date-time' },
+                  purgeAfter: { type: 'string', format: 'date-time', description: 'Erased for good after this' },
+                },
+              },
+            },
+          }),
+          400: errorResponse('Invalid reason, or the only admin'),
           401: errorResponse('Not signed in'),
         },
       },
@@ -336,10 +401,10 @@ export const openApiSpec = {
     '/internal/reminders/run': {
       post: {
         tags: ['Internal: Reminders'],
-        summary: 'Send push reminders for the current slot (called by cron-job.org at 6, 9, 12, 15, 18, 21 Nigeria time)',
+        summary: 'Send push reminders for the current slot (called by cron-job.org at 6:00 and 21:00 Nigeria time)',
         description:
           'Works out the slot from Nigeria time (±15 min). Skips Sundays, days with no reading, and slots already sent today. ' +
-          'Only users whose reminder frequency includes this slot and who have not checked in today are reminded. ' +
+          'Only users with reminders on who have not checked in today are reminded. ' +
           'Outside production you can send `{ "hour": 6 }` to run a slot now.',
         security: [{ cronSecret: [] }],
         requestBody: { ...jsonBody(runRemindersSchema, {}), required: false },
@@ -583,6 +648,82 @@ export const openApiSpec = {
         },
       },
     },
+    '/admin/users/{id}': {
+      delete: {
+        tags: ['Admin: Users'],
+        summary: "Delete someone's account (e.g. they asked by message)",
+        description:
+          'Signs them out everywhere and removes them from the user list and from every weekly report, past ones too. ' +
+          `A copy is held for ${DELETED_ACCOUNT_RETENTION_DAYS} days (see Deleted accounts) so it can be restored, ` +
+          'then erased for good. They are emailed. Their email can register again straight away as a new account. ' +
+          'Use deactivate instead for someone who might come back. To delete your own account use DELETE /me.',
+        security: signedIn,
+        parameters: [userIdParam],
+        requestBody: { ...jsonBody(statusChangeSchema, { reason: 'Asked to be removed' }), required: false },
+        responses: {
+          200: jsonResponse('The deleted user', { type: 'object', properties: { user: ref('DeletedUser') } }),
+          400: errorResponse('Invalid id, or trying to delete yourself'),
+          401: errorResponse('Not signed in'),
+          403: errorResponse('Not an admin'),
+          404: errorResponse('No such user'),
+        },
+      },
+    },
+    '/admin/users/{id}/role': {
+      put: {
+        tags: ['Admin: Users'],
+        summary: 'Make someone an admin, or remove their admin access. Safe to call twice',
+        description:
+          "Takes effect on the person's next request (no new sign-in needed). They are emailed. " +
+          "Admins can't change their own role, so there is always at least one admin. " +
+          'A deactivated member must be reactivated before being made an admin; removing admin from a deactivated admin is allowed.',
+        security: signedIn,
+        parameters: [userIdParam],
+        requestBody: jsonBody(roleChangeSchema, { role: 'admin' }),
+        responses: {
+          200: adminUserResponse('The user with their new role'),
+          400: errorResponse('Invalid id or role, changing your own role, or making a deactivated member an admin'),
+          401: errorResponse('Not signed in'),
+          403: errorResponse('Not an admin'),
+          404: errorResponse('No such user (deleted users included)'),
+        },
+      },
+    },
+    '/admin/deleted-users': {
+      get: {
+        tags: ['Admin: Users'],
+        summary: 'Deleted accounts that can still be restored, most recently deleted first',
+        description: 'Accounts whose holding time is over are erased before the list is made.',
+        security: signedIn,
+        responses: {
+          200: jsonResponse('Deleted accounts', {
+            type: 'object',
+            properties: { users: { type: 'array', items: ref('DeletedUser') } },
+          }),
+          401: errorResponse('Not signed in'),
+          403: errorResponse('Not an admin'),
+        },
+      },
+    },
+    '/admin/deleted-users/{id}/restore': {
+      post: {
+        tags: ['Admin: Users'],
+        summary: 'Restore a deleted account before it is erased',
+        description:
+          'Brings back the account with the same id, profile, check-ins and status history. ' +
+          'They are signed out and sign in again with an emailed code. A restored account that was deactivated stays deactivated.',
+        security: signedIn,
+        parameters: [userIdParam],
+        responses: {
+          200: adminUserResponse('The restored user'),
+          400: errorResponse('Invalid id'),
+          401: errorResponse('Not signed in'),
+          403: errorResponse('Not an admin'),
+          404: errorResponse('No deleted account with this id (or already erased)'),
+          409: errorResponse('Someone has registered with this email since'),
+        },
+      },
+    },
     '/admin/users/{id}/reactivate': {
       post: {
         tags: ['Admin: Users'],
@@ -597,6 +738,90 @@ export const openApiSpec = {
           401: errorResponse('Not signed in'),
           403: errorResponse('Not an admin'),
           404: errorResponse('No such user'),
+        },
+      },
+    },
+    '/admin/email-domains': {
+      get: {
+        tags: ['Admin: Email domains'],
+        summary: 'Admin rules for which email domains may register',
+        description:
+          'Sign-up is refused for a built-in list of about 10,000 disposable email domains and their subdomains. ' +
+          "Admins add 'block' rules for other domains (e.g. used by spammers) and 'allow' rules for a domain the list " +
+          'has by mistake. The most specific rule wins. Only sign-up is checked; existing accounts can still sign in.',
+        security: signedIn,
+        responses: {
+          200: jsonResponse('Rules, blocks first', {
+            type: 'object',
+            properties: { rules: { type: 'array', items: ref('EmailDomainRule') } },
+          }),
+          401: errorResponse('Not signed in'),
+          403: errorResponse('Not an admin'),
+        },
+      },
+    },
+    '/admin/email-domains/check': {
+      get: {
+        tags: ['Admin: Email domains'],
+        summary: 'Would this email or domain be allowed to register?',
+        security: signedIn,
+        parameters: [
+          { name: 'email', in: 'query', required: false, description: 'An email address', schema: { type: 'string' } },
+          { name: 'domain', in: 'query', required: false, description: 'Or just a domain', schema: { type: 'string' } },
+        ],
+        responses: {
+          200: jsonResponse('The result', {
+            type: 'object',
+            properties: {
+              check: {
+                type: 'object',
+                properties: {
+                  domain: { type: 'string' },
+                  blocked: { type: 'boolean' },
+                  source: {
+                    type: ['string', 'null'],
+                    enum: ['admin_block', 'admin_allow', 'disposable_list', null],
+                    description: 'What decided it; null = an ordinary domain',
+                  },
+                  matched: {
+                    type: ['string', 'null'],
+                    description: "The rule or list entry that matched, e.g. 'mailinator.com' for 'x.mailinator.com'",
+                  },
+                },
+              },
+            },
+          }),
+          400: errorResponse('Neither a valid email nor a valid domain given'),
+          401: errorResponse('Not signed in'),
+          403: errorResponse('Not an admin'),
+        },
+      },
+    },
+    '/admin/email-domains/{domain}': {
+      put: {
+        tags: ['Admin: Email domains'],
+        summary: 'Block or allow a domain (and its subdomains). Replaces any rule already there',
+        security: signedIn,
+        parameters: [domainParam],
+        requestBody: jsonBody(domainRuleSchema, { action: 'block', reason: 'Spam sign-ups' }),
+        responses: {
+          200: jsonResponse('The rule', { type: 'object', properties: { rule: ref('EmailDomainRule') } }),
+          400: errorResponse('Invalid domain or action'),
+          401: errorResponse('Not signed in'),
+          403: errorResponse('Not an admin'),
+        },
+      },
+      delete: {
+        tags: ['Admin: Email domains'],
+        summary: 'Remove a rule (the domain is then blocked only if it is on the disposable list)',
+        security: signedIn,
+        parameters: [domainParam],
+        responses: {
+          204: { description: 'Removed' },
+          400: errorResponse('Invalid domain'),
+          401: errorResponse('Not signed in'),
+          403: errorResponse('Not an admin'),
+          404: errorResponse('No rule for this domain'),
         },
       },
     },

@@ -93,22 +93,22 @@ describe('auth and profile', () => {
     assert.equal((await api.request('GET', '/me')).status, 401);
   });
 
-  it('returns the profile with mid reminders by default', async () => {
+  it('returns the profile with reminders on by default', async () => {
     const r = await api.request('GET', '/me', { token });
     assert.equal(r.status, 200);
-    assert.equal(r.body.user.reminderFrequency, 'mid');
+    assert.equal(r.body.user.remindersEnabled, true);
     assert.equal(r.body.user.role, 'user');
   });
 
   it('updates only the fields sent', async () => {
-    const r = await api.request('PATCH', '/me', { token, body: { reminderFrequency: 'high' } });
+    const r = await api.request('PATCH', '/me', { token, body: { remindersEnabled: false } });
     assert.equal(r.status, 200);
-    assert.equal(r.body.user.reminderFrequency, 'high');
+    assert.equal(r.body.user.remindersEnabled, false);
     assert.equal(r.body.user.name, 'Ada Test');
   });
 
-  it('rejects an invalid reminder frequency', async () => {
-    const r = await api.request('PATCH', '/me', { token, body: { reminderFrequency: 'sometimes' } });
+  it('rejects an invalid reminders setting', async () => {
+    const r = await api.request('PATCH', '/me', { token, body: { remindersEnabled: 'sometimes' } });
     assert.equal(r.status, 400);
   });
 

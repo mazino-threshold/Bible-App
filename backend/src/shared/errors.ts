@@ -2,11 +2,21 @@ import type { ErrorRequestHandler, RequestHandler } from 'express';
 import { ZodError } from 'zod';
 import { logger } from './logger';
 
-/** Throw this from anywhere to send a specific status code and message to the app. */
+/** Which input field an error is about, in the same shape as validation errors. */
+export interface FieldError {
+  field: string;
+  message: string;
+}
+
+/**
+ * Throw this from anywhere to send a specific status code and message to the app.
+ * Pass details when the error is about a particular field, so the app can show it next to that field.
+ */
 export class HttpError extends Error {
   constructor(
     public status: number,
     message: string,
+    public details?: FieldError[],
   ) {
     super(message);
   }
@@ -18,7 +28,7 @@ export const notFound: RequestHandler = (_req, res) => {
 
 export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   if (err instanceof HttpError) {
-    res.status(err.status).json({ error: err.message });
+    res.status(err.status).json(err.details ? { error: err.message, details: err.details } : { error: err.message });
     return;
   }
 

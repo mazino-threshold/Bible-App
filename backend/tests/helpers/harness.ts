@@ -41,6 +41,14 @@ export function lastLoginCode(): string {
   throw new Error('No login code has been sent');
 }
 
+/** Subjects of the emails "sent" (printed by EMAIL_PROVIDER=console) to this address, oldest first. */
+export function emailSubjectsTo(address: string): string[] {
+  const prefix = `Email to ${address} (not sent`;
+  return logLines
+    .filter((line) => line.includes(prefix))
+    .map((line) => line.match(/Subject: (.*)/)?.[1] ?? '');
+}
+
 // ---------- Clock ----------
 
 /** Makes the app believe it is this date and time in Nigeria, e.g. setNigeriaTime('2099-01-07', '09:00'). */
@@ -210,6 +218,7 @@ export async function startApi(): Promise<TestApi> {
 /** Deletes test users (by email prefix) and everything from December 2098 onwards (some tests use the week before 2099-01-05). */
 export async function deleteTestData(emailPrefix: string): Promise<void> {
   await pool.query('DELETE FROM users WHERE email LIKE $1', [`${emailPrefix}%`]);
+  await pool.query('DELETE FROM deleted_users WHERE email LIKE $1', [`${emailPrefix}%`]);
   await pool.query("DELETE FROM readings WHERE reading_date >= '2098-12-01'");
   await pool.query("DELETE FROM reminder_runs WHERE reminder_date >= '2098-12-01'");
 }
@@ -217,13 +226,13 @@ export async function deleteTestData(emailPrefix: string): Promise<void> {
 /** Inserts a user directly (faster than signing up) and returns their id. */
 export async function insertUser(
   email: string,
-  options: { name?: string; frequency?: string; createdAt?: string } = {},
+  options: { name?: string; remindersEnabled?: boolean; createdAt?: string } = {},
 ): Promise<string> {
   const { rows } = await pool.query<{ id: string }>(
-    `INSERT INTO users (name, email, phone, reminder_frequency, created_at)
+    `INSERT INTO users (name, email, phone, reminders_enabled, created_at)
      VALUES ($1, $2, '08030000000', $3, COALESCE($4::timestamptz, now()))
      RETURNING id`,
-    [options.name ?? email, email, options.frequency ?? 'mid', options.createdAt ?? null],
+    [options.name ?? email, email, options.remindersEnabled ?? true, options.createdAt ?? null],
   );
   return rows[0]!.id;
 }

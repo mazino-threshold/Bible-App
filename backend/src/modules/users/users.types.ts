@@ -1,5 +1,4 @@
 export type Role = 'user' | 'admin';
-export type ReminderFrequency = 'high' | 'mid' | 'low' | 'off';
 
 /** A user as stored in the database. */
 export interface UserRow {
@@ -8,7 +7,8 @@ export interface UserRow {
   email: string;
   phone: string;
   role: Role;
-  reminder_frequency: ReminderFrequency;
+  /** Push reminders at 6 AM and 9 PM. */
+  reminders_enabled: boolean;
   created_at: Date;
   /** null while the account is active. */
   deactivated_at: Date | null;
@@ -22,8 +22,47 @@ export interface UserDto {
   email: string;
   phone: string;
   role: Role;
-  reminderFrequency: ReminderFrequency;
+  remindersEnabled: boolean;
   createdAt: Date;
+}
+
+export type DeletionRequestedBy = 'user' | 'admin';
+
+/** A deleted account waiting to be erased (deleted_users), without the archived check-ins and history. */
+export interface DeletedUserRow {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: Role;
+  requested_by: DeletionRequestedBy;
+  deleted_by: string | null;
+  deletion_reason: string | null;
+  deleted_at: Date;
+  purge_after: Date;
+  check_in_count: number;
+}
+
+/** A deleted account as shown to admins. */
+export interface DeletedUserDto {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: Role;
+  requestedBy: DeletionRequestedBy;
+  deletedBy: string | null;
+  deletionReason: string | null;
+  deletedAt: Date;
+  /** Erased for good after this; until then an admin can restore it. */
+  purgeAfter: Date;
+  checkInCount: number;
+}
+
+/** Sent to a user who has just deleted their own account. */
+export interface MyDeletionDto {
+  deletedAt: Date;
+  purgeAfter: Date;
 }
 
 /** A user as shown on the admin's user list. */
