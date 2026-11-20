@@ -1,6 +1,7 @@
 import '../helpers/env';
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
+import { db } from '../../src/db/pool';
 import { makeAdmin } from '../../src/modules/users/commands/make-admin.command';
 import { deleteTestData, lastLoginCode, pool, startApi, type TestApi } from '../helpers/harness';
 
@@ -129,6 +130,18 @@ describe('auth and profile', () => {
     const r = await api.request('GET', '/health');
     assert.equal(r.status, 200);
     assert.equal(r.body.status, 'ok');
+  });
+
+  it('the keep-alive check works without touching the database', async () => {
+    const realQuery = db.query;
+    db.query = () => Promise.reject(new Error('the database should not be called'));
+    try {
+      const r = await api.request('GET', '/health/live');
+      assert.equal(r.status, 200);
+      assert.deepEqual(r.body, { status: 'ok' });
+    } finally {
+      db.query = realQuery;
+    }
   });
 
   it('logout kills the token', async () => {
