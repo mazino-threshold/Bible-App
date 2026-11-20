@@ -6,12 +6,12 @@ import { findReadingsBetween } from '../../schedule/data/schedule.reads';
 import { findReminderRecipients } from '../data/reminders.reads';
 import { claimReminderRun, finishReminderRun } from '../data/reminders.writes';
 import type { ReminderHour } from '../reminders.constants';
-import { frequenciesForHour, reminderMessage, slotForTime } from '../reminders.logic';
+import { reminderMessage, slotForTime } from '../reminders.logic';
 import type { ReminderRunDto } from '../reminders.types';
 
 /**
- * Sends the push reminders for the current slot (6, 9, 12, 15, 18 or 21 Nigeria time) to everyone
- * whose frequency includes it and who hasn't checked in today. Called by the cron job.
+ * Sends the push reminders for the current slot (6 AM or 9 PM Nigeria time) to everyone
+ * with reminders on who hasn't checked in today. Called by the cron job.
  * Each slot is sent at most once per day, however many times this is called.
  *
  * @param hourOverride for testing outside production: run this slot instead of working it out from the clock
@@ -35,7 +35,7 @@ export async function sendReminders(hourOverride?: ReminderHour): Promise<Remind
 
   if (!(await claimReminderRun(date, hour))) return skip('Already sent for this time today');
 
-  const recipients = await findReminderRecipients(date, frequenciesForHour(hour));
+  const recipients = await findReminderRecipients(date);
   const { title, body } = reminderMessage(hour, reading.passage);
 
   const results = await sendPushMessages(

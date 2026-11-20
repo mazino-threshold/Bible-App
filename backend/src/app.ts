@@ -5,13 +5,14 @@ import { docsRouter } from './docs/docs.routes';
 import { authRouter } from './modules/auth/auth.routes';
 import { checkInsRouter } from './modules/checkins/checkins.routes';
 import { communityRouter } from './modules/community/community.routes';
+import { adminEmailDomainsRouter } from './modules/email-domains/email-domains.routes';
 import { healthRouter } from './modules/health/health.routes';
 import { passageCacheRouter, passagesRouter } from './modules/passages/passages.routes';
 import { pushTokensRouter } from './modules/push/push.routes';
 import { remindersRouter } from './modules/reminders/reminders.routes';
 import { adminReportsRouter } from './modules/reports/reports.routes';
 import { adminScheduleRouter, scheduleRouter } from './modules/schedule/schedule.routes';
-import { adminUsersRouter, meRouter } from './modules/users/users.routes';
+import { adminDeletedUsersRouter, adminUsersRouter, meRouter } from './modules/users/users.routes';
 import { errorHandler, notFound } from './shared/errors';
 import { requestLogger } from './shared/request-logger';
 
@@ -41,6 +42,8 @@ app.use('/check-ins', checkInsRouter);
 app.use('/community', communityRouter);
 app.use('/admin/reports', adminReportsRouter);
 app.use('/admin/users', adminUsersRouter);
+app.use('/admin/deleted-users', adminDeletedUsersRouter);
+app.use('/admin/email-domains', adminEmailDomainsRouter);
 app.use('/internal/reminders', remindersRouter);
 app.use('/internal/passage-cache', passageCacheRouter);
 

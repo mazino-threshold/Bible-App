@@ -7,6 +7,6 @@ export const runRemindersSchema = z.object({
   hour: z
     .number()
     .int()
-    .refine((h) => (REMINDER_HOURS as readonly number[]).includes(h), 'hour must be one of 6, 9, 12, 15, 18, 21')
+    .refine((h) => (REMINDER_HOURS as readonly number[]).includes(h), 'hour must be 6 or 21')
     .optional(),
 });

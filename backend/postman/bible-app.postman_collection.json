@@ -14,7 +14,8 @@
     { "key": "weekStart", "value": "2026-11-02", "description": "A Monday, YYYY-MM-DD" },
     { "key": "pushToken", "value": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]" },
     { "key": "cronSecret", "value": "", "description": "CRON_SECRET from .env (leave empty in development if not set)" },
-    { "key": "userId", "value": "", "description": "The user to deactivate / reactivate (from List users)" }
+    { "key": "emailDomain", "value": "spam-domain.com", "description": "A domain to block / allow (no @)" },
+    { "key": "userId", "value": "", "description": "The user to deactivate / reactivate / delete / restore (from List users or List deleted accounts)" }
   ],
   "auth": {
     "type": "bearer",
@@ -160,7 +161,7 @@
           "request": {
             "method": "PATCH",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"reminderFrequency\": \"high\"\n}" },
+            "body": { "mode": "raw", "raw": "{\n  \"remindersEnabled\": false\n}" },
             "url": "{{baseUrl}}/me"
           },
           "event": [
@@ -169,6 +170,24 @@
               "script": {
                 "type": "text/javascript",
                 "exec": ["pm.test('status 200', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete my account (signs you out; admin can restore for 30 days)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Not using the app any more\"\n}" },
+            "url": "{{baseUrl}}/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('deleted', () => pm.expect(pm.response.json().deletion.purgeAfter).to.be.a('string'));"]
               }
             }
           ]
@@ -593,6 +612,189 @@
               "script": {
                 "type": "text/javascript",
                 "exec": ["pm.test('reactivated', () => pm.expect(pm.response.json().user.active).to.equal(true));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete a user",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Asked to be removed\"\n}" },
+            "url": "{{baseUrl}}/admin/users/{{userId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('deleted', () => pm.expect(pm.response.json().user.deletedAt).to.be.a('string'));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Make a user an admin (or role: user to remove)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"role\": \"admin\"\n}" },
+            "url": "{{baseUrl}}/admin/users/{{userId}}/role"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('role set', () => pm.expect(pm.response.json().user.role).to.equal('admin'));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List deleted accounts (restorable)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/admin/deleted-users"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.response.json().users.forEach((u) => console.log(u.id, '|', u.name, '|', u.requestedBy, '| erased after', u.purgeAfter));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Restore a deleted account",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/admin/deleted-users/{{userId}}/restore"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('restored', () => pm.expect(pm.response.json().user.id).to.equal(pm.collectionVariables.get('userId')));"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin: Email domains",
+      "item": [
+        {
+          "name": "List domain rules",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/admin/email-domains"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.json().rules.forEach((r) => console.log(r.action, '|', r.domain, '|', r.reason));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Check an email",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/admin/email-domains/check?email=someone@mailinator.com"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Block a domain",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"block\",\n  \"reason\": \"Spam sign-ups\"\n}"
+            },
+            "url": "{{baseUrl}}/admin/email-domains/{{emailDomain}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('blocked', () => pm.expect(pm.response.json().rule.action).to.equal('block'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Allow a domain (overrides the disposable list)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"allow\",\n  \"reason\": \"Listed by mistake\"\n}"
+            },
+            "url": "{{baseUrl}}/admin/email-domains/{{emailDomain}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('allowed', () => pm.expect(pm.response.json().rule.action).to.equal('allow'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove a domain rule",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/admin/email-domains/{{emailDomain}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 204', () => pm.response.to.have.status(204));"
+                ]
               }
             }
           ]

@@ -15,6 +15,7 @@
     "migrate": "tsx src/db/migrate.ts",
     "migrate:prod": "node dist/db/migrate.js",
     "make-admin": "tsx src/scripts/make-admin.ts",
+    "update-disposable-domains": "tsx src/scripts/update-disposable-domains.ts",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tests",
     "test": "tsx --test --test-concurrency=1 \"tests/**/*.test.ts\"",
     "test:unit": "tsx --test \"tests/unit/**/*.test.ts\"",

@@ -8,6 +8,11 @@ interface Email {
   html: string;
 }
 
+/** For putting user-entered text (names, reasons) into an email's HTML. */
+export function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+}
+
 /** Sends an email through the provider chosen by EMAIL_PROVIDER. */
 export async function sendEmail(email: Email): Promise<void> {
   switch (env.EMAIL_PROVIDER) {

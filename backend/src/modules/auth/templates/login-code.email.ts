@@ -1,3 +1,5 @@
+import { escapeHtml } from '../../../shared/email';
+
 export function loginCodeEmail(name: string, code: string, ttlMinutes: number) {
   return {
     subject: `Your Brethren Bible Reading Club code: ${code}`,
@@ -8,8 +10,4 @@ export function loginCodeEmail(name: string, code: string, ttlMinutes: number) {
 <p>It expires in ${ttlMinutes} minutes.</p>
 <p style="color:#666">If you didn't ask for this, you can ignore this email.</p>`,
   };
-}
-
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 }

@@ -13,6 +13,6 @@ export async function updateProfile(userId: string, input: UpdateProfileInput): 
   }
 
   // Field names only: the values (name, phone) are personal details
-  logger.info('Profile updated', { fields: Object.keys(input), reminderFrequency: input.reminderFrequency });
+  logger.info('Profile updated', { fields: Object.keys(input), remindersEnabled: input.remindersEnabled });
   return toUserDto(user);
 }
